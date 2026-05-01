@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  /* Section label used across pages */
+  .section-label {
+    @apply text-[11px] font-bold tracking-[1.8px] text-ink-mute uppercase mt-[22px] mb-[10px] mx-1;
+  }
+
+  /* Form inputs */
+  .form-input,
+  .form-textarea {
+    @apply w-full px-[13px] py-[11px] bg-card border-[1.5px] border-line rounded-sm text-[14.5px] text-ink outline-none transition-colors;
+    -webkit-appearance: none;
+  }
+  .form-input:focus,
+  .form-textarea:focus {
+    @apply border-primary;
+    box-shadow: 0 0 0 3px rgba(29, 93, 68, 0.1);
+  }
+  .form-textarea {
+    resize: vertical;
+    min-height: 70px;
+    line-height: 1.5;
+  }
+  .form-textarea.arabic-input {
+    @apply font-arabic;
+    font-size: 21px;
+    line-height: 1.9;
+    direction: rtl;
+    text-align: right;
+    min-height: 100px;
+  }
+  .form-label {
+    @apply block text-[11px] font-bold tracking-[1.5px] uppercase text-ink-soft mb-[5px];
+  }
+
+  /* Buttons */
+  .btn {
+    @apply flex-1 px-4 py-3 border-0 rounded-sm text-sm font-semibold cursor-pointer transition-transform;
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .btn-primary {
+    @apply bg-primary text-card;
+    box-shadow: 0 2px 6px rgba(29, 93, 68, 0.25);
+  }
+  .btn-secondary {
+    @apply bg-card text-ink-soft border border-line;
+  }
+  .btn-secondary:active {
+    @apply bg-line-soft;
+  }
+  .btn-danger {
+    @apply bg-rose text-card;
+  }
+}
