@@ -18,7 +18,6 @@ export function SubDetailPage({ store }: Props) {
   const idx = subs.findIndex((s) => s.id === subId);
   const sub = idx >= 0 ? subs[idx] : null;
 
-  const [revealed, setRevealed] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,7 +27,6 @@ export function SubDetailPage({ store }: Props) {
   if (!sub) return <Navigate to={`/card/${cardId}`} replace />;
 
   const goTo = (newIdx: number) => {
-    setRevealed(false);
     navigate(`/card/${cardId}/dua/${subs[newIdx].id}`, { replace: true });
   };
 
@@ -37,7 +35,7 @@ export function SubDetailPage({ store }: Props) {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-bg">
-      {/* Minimal header */}
+      {/* Header */}
       <header className="flex items-center justify-between px-4 pt-5 pb-3">
         <button
           onClick={() => navigate(`/card/${cardId}`)}
@@ -49,12 +47,9 @@ export function SubDetailPage({ store }: Props) {
 
         <div className="text-center">
           <div className="text-[13px] font-semibold text-ink">{card.title}</div>
-          <div className="text-[11px] text-ink-mute">
-            {idx + 1} / {subs.length}
-          </div>
+          <div className="text-[11px] text-ink-mute">{idx + 1} / {subs.length}</div>
         </div>
 
-        {/* Actions menu */}
         <div className="relative">
           <button
             onClick={() => setMenuOpen((o) => !o)}
@@ -65,10 +60,7 @@ export function SubDetailPage({ store }: Props) {
           </button>
           {menuOpen && (
             <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setMenuOpen(false)}
-              />
+              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 top-12 z-20 w-36 overflow-hidden rounded-xl border border-line bg-card shadow-soft-lg">
                 <button
                   onClick={() => { setMenuOpen(false); setEditOpen(true); }}
@@ -98,73 +90,39 @@ export function SubDetailPage({ store }: Props) {
         />
       </div>
 
-      {/* Main content — vertically centered */}
-      <main className="flex flex-1 flex-col items-center justify-center px-5 py-8">
-        <div className="w-full max-w-[620px]">
-          {/* Arabic block */}
-          <div
-            className="mb-8 rounded-2xl bg-card p-6 text-right shadow-soft-md"
-            dir="rtl"
-          >
-            {sub.arabic ? (
-              <p className="m-0 font-arabic text-[28px] leading-[2.2] text-ink">
-                {sub.arabic}
-              </p>
-            ) : (
-              <p className="m-0 text-center font-sans text-sm italic text-ink-mute">
-                — No Arabic text —
-              </p>
-            )}
+      {/* Page title */}
+      {sub.title?.trim() && (
+        <div className="px-5 pt-6 pb-1 text-center">
+          <span className="mb-2.5 inline-block rounded-full bg-gold-soft px-3.5 py-1 text-[10px] font-bold uppercase tracking-[1.8px] text-gold-deep">
+            No. {String(idx + 1).padStart(2, '0')}
+          </span>
+          <h1 className="mt-1 font-display text-[28px] font-bold leading-snug text-ink">
+            {sub.title}
+          </h1>
+        </div>
+      )}
+
+      {/* Main content */}
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-[620px] rounded-xl border border-dashed border-line bg-card px-5 py-12 text-center">
+
+          {/* Arabic */}
+          <div className="mb-6 font-arabic text-[32px] leading-[1.9] text-primary" dir="rtl">
+            {sub.arabic || '—'}
           </div>
 
-          {/* Title (if any) */}
-          {sub.title?.trim() && (
-            <div className="mb-5 text-center text-[16px] font-semibold text-ink">
-              {sub.title}
-            </div>
+          {/* Translation */}
+          {sub.translation && (
+            <p className="mb-3 text-[16px] font-bold leading-snug text-ink">
+              {sub.translation}
+            </p>
           )}
 
-          {/* Translation reveal */}
-          {(sub.translation || sub.reward) && (
-            <>
-              {!revealed ? (
-                <button
-                  onClick={() => setRevealed(true)}
-                  className="w-full cursor-pointer rounded-xl border-[1.5px] border-dashed border-primary/40 bg-primary-soft/60 py-4 text-[13.5px] font-semibold text-primary transition-colors hover:bg-primary-soft active:bg-primary-soft"
-                >
-                  Tap to reveal translation
-                </button>
-              ) : (
-                <div className="animate-fade-in space-y-4">
-                  {sub.translation && (
-                    <div className="rounded-xl bg-card px-5 py-4 shadow-soft-sm">
-                      <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[1.5px] text-ink-mute">
-                        Translation
-                      </div>
-                      <p className="m-0 text-[15px] leading-[1.7] text-ink-soft">
-                        {sub.translation}
-                      </p>
-                    </div>
-                  )}
-                  {sub.reward && (
-                    <div className="rounded-xl border-l-[3px] border-gold bg-gold-soft px-4 py-3.5 shadow-soft-sm">
-                      <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[1.5px] text-gold-deep">
-                        Reward
-                      </div>
-                      <p className="m-0 text-[13.5px] leading-[1.65] text-ink">
-                        {sub.reward}
-                      </p>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setRevealed(false)}
-                    className="w-full cursor-pointer rounded-xl border border-line bg-card py-2.5 text-[12px] font-medium text-ink-mute hover:bg-line-soft"
-                  >
-                    Hide
-                  </button>
-                </div>
-              )}
-            </>
+          {/* Reward */}
+          {sub.reward && (
+            <p className="m-0 text-[13px] leading-[1.6] text-ink-mute">
+              {sub.reward}
+            </p>
           )}
         </div>
       </main>
