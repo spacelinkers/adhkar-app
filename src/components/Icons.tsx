@@ -12,6 +12,9 @@ const baseProps: SVGProps<SVGSVGElement> = {
 export const ChevronRight = (p: SVGProps<SVGSVGElement>) => (
   <svg {...baseProps} {...p}><path d="M9 18l6-6-6-6" /></svg>
 );
+export const ChevronLeft = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...baseProps} {...p}><path d="M15 18l-6-6 6-6" /></svg>
+);
 export const ArrowLeft = (p: SVGProps<SVGSVGElement>) => (
   <svg {...baseProps} {...p}><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
 );

@@ -28,7 +28,7 @@ export function CollectionCard({ card, onEdit, onDelete }: Props) {
       <div className="min-w-0 flex-1">
         <h3 className="m-0 mb-0.5 text-[15px] font-bold leading-snug text-ink">{card.title}</h3>
         <div className="text-xs font-medium text-ink-mute">
-          {count} {count === 1 ? 'dua' : 'duas'}
+          {count} {count === 1 ? 'entry' : 'entries'}
           {previewDesc && ` · ${previewDesc}`}
         </div>
       </div>
