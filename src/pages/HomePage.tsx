@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { CollectionCard } from '../components/CollectionCard';
 import { CardModal } from '../components/CardModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Plus } from '../components/Icons';
-import { Logo } from '../components/Icons';
+import { Plus, Logo } from '../components/Icons';
+import { InspirationCard } from '../components/InspirationCard';
 import type { Card } from '../types';
 import type { UseCardsResult } from '../hooks/useCards';
 
@@ -53,7 +53,10 @@ export function HomePage({ store }: Props) {
         </button>
       </header>
 
-      <main className="mx-auto max-w-[720px] px-4 pb-32">
+      <main className="mx-auto max-w-[720px] pb-32">
+        <InspirationCard />
+
+        <div className="px-4">
         {cards.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-dashed border-line bg-card px-5 py-14 text-center">
             <div className="mb-3 font-arabic text-[36px] text-primary/30" dir="rtl">ٱبْدَأْ</div>
@@ -86,6 +89,7 @@ export function HomePage({ store }: Props) {
           >
             Clear data
           </button>
+        </div>
         </div>
       </main>
 

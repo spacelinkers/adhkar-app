@@ -62,7 +62,8 @@ export function DetailPage({ store }: Props) {
         }
       />
 
-      <main className="mx-auto max-w-[720px] px-4 pb-32">
+      <main className="mx-auto max-w-[720px] pb-32">
+        <div className="px-4">
         {card.desc && (
           <p className="mb-4 mt-1 text-[13.5px] leading-[1.6] text-ink-soft">{card.desc}</p>
         )}
@@ -90,6 +91,7 @@ export function DetailPage({ store }: Props) {
           <Plus className="h-3.5 w-3.5" />
           Add Entry
         </button>
+        </div>
       </main>
 
       <SubcardModal
