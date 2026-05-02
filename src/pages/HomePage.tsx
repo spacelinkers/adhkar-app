@@ -9,9 +9,10 @@ import type { UseCardsResult } from '../hooks/useCards';
 
 interface Props {
   store: UseCardsResult;
+  onSignOut: () => Promise<void>;
 }
 
-export function HomePage({ store }: Props) {
+export function HomePage({ store, onSignOut }: Props) {
   const { cards, cloudEnabled, createCard, updateCard, deleteCard, clearLocal } = store;
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -44,13 +45,25 @@ export function HomePage({ store }: Props) {
             </div>
           </div>
         </div>
-        <button
-          onClick={openNew}
-          className="flex cursor-pointer items-center gap-1.5 rounded-xl border-0 bg-primary px-4 py-2.5 text-[13px] font-semibold text-card shadow-soft-sm transition-transform active:scale-95"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openNew}
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border-0 bg-primary px-4 py-2.5 text-[13px] font-semibold text-card shadow-soft-sm transition-transform active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New
+          </button>
+          <button
+            onClick={onSignOut}
+            aria-label="Sign out"
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink-mute transition-colors active:bg-line-soft"
+            title="Sign out"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <main className="mx-auto max-w-[720px] pb-32">

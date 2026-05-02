@@ -1,9 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read/write their own data
+
+    // Allowlist: each user can only read their own entry (to check if they're permitted)
+    match /allowlist/{email} {
+      allow read: if request.auth != null && request.auth.token.email == email;
+      allow write: if false;
+    }
+
+    // User data: only accessible by the owner AND only if their email is on the allowlist
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        && exists(/databases/$(database)/documents/allowlist/$(request.auth.token.email));
     }
   }
 }
