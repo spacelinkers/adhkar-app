@@ -10,19 +10,23 @@ import {
 export type AuthStatus = 'pending' | 'authed' | 'unauthenticated' | 'denied' | 'error';
 
 export interface AuthState {
-  status: AuthStatus;
-  userId: string | null;
-  email:  string | null;
-  error:  string | null;
+  status:      AuthStatus;
+  userId:      string | null;
+  email:       string | null;
+  displayName: string | null;
+  photoURL:    string | null;
+  error:       string | null;
   signIn:  () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 export function useAuth(): AuthState {
-  const [status,  setStatus]  = useState<AuthStatus>(isFirebaseConfigured ? 'pending' : 'unauthenticated');
-  const [userId,  setUserId]  = useState<string | null>(null);
-  const [email,   setEmail]   = useState<string | null>(null);
-  const [error,   setError]   = useState<string | null>(null);
+  const [status,      setStatus]      = useState<AuthStatus>(isFirebaseConfigured ? 'pending' : 'unauthenticated');
+  const [userId,      setUserId]      = useState<string | null>(null);
+  const [email,       setEmail]       = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [photoURL,    setPhotoURL]    = useState<string | null>(null);
+  const [error,       setError]       = useState<string | null>(null);
 
   // Prevents the sign-out triggered by a denied user from resetting status back to 'unauthenticated'.
   const deniedRef = useRef(false);
@@ -46,6 +50,8 @@ export function useAuth(): AuthState {
           setStatus('authed');
           setUserId(user.uid);
           setEmail(user.email);
+          setDisplayName(user.displayName);
+          setPhotoURL(user.photoURL);
           setError(null);
         } else {
           deniedRef.current = true;
@@ -54,6 +60,8 @@ export function useAuth(): AuthState {
           setStatus('denied');
           setUserId(null);
           setEmail(deniedEmail);
+          setDisplayName(null);
+          setPhotoURL(null);
         }
       } catch (err) {
         deniedRef.current = false;
@@ -87,8 +95,10 @@ export function useAuth(): AuthState {
     setStatus('unauthenticated');
     setUserId(null);
     setEmail(null);
+    setDisplayName(null);
+    setPhotoURL(null);
     setError(null);
   }, []);
 
-  return { status, userId, email, error, signIn, signOut };
+  return { status, userId, email, displayName, photoURL, error, signIn, signOut };
 }

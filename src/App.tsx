@@ -41,7 +41,7 @@ export default function App() {
       <SyncStatus sync={store.sync} />
 
       <Routes>
-        <Route path="/"                          element={<HomePage    store={store} onSignOut={auth.signOut} />} />
+        <Route path="/"                          element={<HomePage    store={store} onSignOut={auth.signOut} displayName={auth.displayName} email={auth.email} photoURL={auth.photoURL} />} />
         <Route path="/card/:cardId"              element={<DetailPage  store={store} />} />
         <Route path="/card/:cardId/dua/:subId"   element={<SubDetailPage store={store} />} />
       </Routes>
