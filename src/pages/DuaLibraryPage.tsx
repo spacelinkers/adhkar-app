@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Edit, Trash } from '../components/Icons';
+import { ArrowLeft, Plus, ChevronRight } from '../components/Icons';
 import { Modal } from '../components/Modal';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { AddToCollectionModal } from '../components/AddToCollectionModal';
 import { useDuas } from '../hooks/useDuas';
 import type { UseCardsResult } from '../hooks/useCards';
 import type { Dua } from '../types';
@@ -18,31 +16,32 @@ const EMPTY: Omit<Dua, 'id' | 'createdAt' | 'createdBy'> = {
   title: '', arabic: '', translation: '', reward: '',
 };
 
-export function DuaLibraryPage({ store, isAdmin, email }: Props) {
-  const navigate  = useNavigate();
-  const duaStore  = useDuas(true);
+export function DuaLibraryPage({ isAdmin, email }: Props) {
+  const navigate = useNavigate();
+  const duaStore = useDuas(true);
 
-  // Admin form state
-  const [formOpen,   setFormOpen]   = useState(false);
-  const [editing,    setEditing]    = useState<Dua | null>(null);
-  const [formData,   setFormData]   = useState(EMPTY);
-  const [saving,     setSaving]     = useState(false);
+  // Admin: new dua form
+  const [formOpen, setFormOpen] = useState(false);
+  const [formData, setFormData] = useState(EMPTY);
+  const [saving,   setSaving]   = useState(false);
 
-  // Delete confirm
-  const [confirmDua, setConfirmDua] = useState<Dua | null>(null);
+  // Search
+  const [query, setQuery] = useState('');
+  const filtered = query.trim()
+    ? duaStore.duas.filter((d) => d.title.toLowerCase().includes(query.toLowerCase()))
+    : duaStore.duas;
 
-  // Add-to-collection
-  const [addTarget,  setAddTarget]  = useState<Dua | null>(null);
+  // Restore scroll position after the list has finished loading
+  useEffect(() => {
+    if (!duaStore.isLoaded) return;
+    const saved = sessionStorage.getItem('library-scroll');
+    if (!saved) return;
+    sessionStorage.removeItem('library-scroll');
+    requestAnimationFrame(() => window.scrollTo(0, Number(saved)));
+  }, [duaStore.isLoaded]);
 
   const openNew = () => {
-    setEditing(null);
     setFormData(EMPTY);
-    setFormOpen(true);
-  };
-
-  const openEdit = (dua: Dua) => {
-    setEditing(dua);
-    setFormData({ title: dua.title, arabic: dua.arabic, translation: dua.translation, reward: dua.reward });
     setFormOpen(true);
   };
 
@@ -50,25 +49,11 @@ export function DuaLibraryPage({ store, isAdmin, email }: Props) {
     if (!formData.title.trim()) return;
     setSaving(true);
     try {
-      if (editing) {
-        await duaStore.update(editing.id, formData);
-      } else {
-        await duaStore.create(formData, email ?? '');
-      }
+      await duaStore.create(formData, email ?? '');
       setFormOpen(false);
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleAddToCollection = async (cardId: string, dua: Dua) => {
-    await store.addSubcard(cardId, {
-      duaId:       dua.id,
-      title:       dua.title,
-      arabic:      dua.arabic,
-      translation: dua.translation,
-      reward:      dua.reward,
-    });
   };
 
   const field = (key: keyof typeof formData, value: string) =>
@@ -102,6 +87,22 @@ export function DuaLibraryPage({ store, isAdmin, email }: Props) {
         )}
       </header>
 
+      {/* Search */}
+      <div className="mx-auto w-full max-w-[720px] px-4 pb-3">
+        <div className="relative">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by title…"
+            className="w-full rounded-xl border border-line bg-card py-2.5 pl-10 pr-4 text-[14px] text-ink placeholder:text-ink-mute focus:border-primary focus:outline-none"
+          />
+        </div>
+      </div>
+
       {/* List */}
       <main className="mx-auto w-full max-w-[720px] flex-1 px-4 pb-24">
         {!duaStore.isLoaded ? (
@@ -114,80 +115,37 @@ export function DuaLibraryPage({ store, isAdmin, email }: Props) {
               <p className="m-0 text-[13px] text-ink-mute">Tap "Add" above to add the first dua.</p>
             )}
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="mt-8 rounded-xl border border-dashed border-line bg-card px-5 py-12 text-center">
+            <p className="text-[14px] font-semibold text-ink">No duas match "{query}"</p>
+            <p className="mt-1 text-[12px] text-ink-mute">Try a different word or clear the search.</p>
+          </div>
         ) : (
-          <div className="flex flex-col gap-3 pt-1">
-            {duaStore.duas.map((dua) => (
-              <div
+          <div className="flex flex-col gap-1.5 pt-1">
+            {filtered.map((dua) => (
+              <button
                 key={dua.id}
-                className="rounded-xl border border-line-soft bg-card shadow-soft-sm"
+                onClick={() => {
+                  sessionStorage.setItem('library-scroll', String(window.scrollY));
+                  navigate(`/library/${dua.id}`);
+                }}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-line-soft bg-card px-4 py-3.5 text-left transition-colors active:bg-primary-soft"
               >
-                {/* Arabic */}
-                <div className="border-b border-line-soft px-5 pt-5 pb-4 text-right" dir="rtl">
-                  <p className="m-0 font-arabic text-[24px] leading-[2] text-primary">
-                    {dua.arabic || '—'}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[14px] font-semibold text-ink">{dua.title}</span>
                 </div>
-
-                {/* Content */}
-                <div className="px-5 pt-4 pb-3">
-                  <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-0.5 text-[11px] font-bold text-primary">
-                    {dua.title}
-                  </div>
-
-                  {dua.translation && (
-                    <p className="mb-2 text-[14px] font-semibold leading-snug text-ink">
-                      {dua.translation}
-                    </p>
-                  )}
-
-                  {dua.reward && (
-                    <p className="m-0 text-[12.5px] leading-[1.6] text-ink-mute">
-                      {dua.reward}
-                    </p>
-                  )}
-                </div>
-
-                {/* Footer actions */}
-                <div className="flex items-center justify-between border-t border-line-soft px-4 py-2.5">
-                  {isAdmin ? (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => openEdit(dua)}
-                        className="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-ink-mute hover:bg-line-soft"
-                        aria-label="Edit"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDua(dua)}
-                        className="grid h-8 w-8 cursor-pointer place-items-center rounded-lg text-ink-mute hover:bg-line-soft active:text-rose"
-                        aria-label="Delete"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div />
-                  )}
-                  <button
-                    onClick={() => setAddTarget(dua)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-card active:scale-95"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add to my collection
-                  </button>
-                </div>
-              </div>
+                <ChevronRight className="h-4 w-4 flex-shrink-0 text-ink-mute" />
+              </button>
             ))}
           </div>
         )}
       </main>
 
-      {/* Admin: Add / Edit dua modal */}
+      {/* Admin: new dua modal */}
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        title={editing ? 'Edit Dua' : 'New Dua'}
+        title="New Dua"
         subtitle="Title · Arabic · Translation · Reward"
         footer={
           <>
@@ -200,65 +158,21 @@ export function DuaLibraryPage({ store, isAdmin, email }: Props) {
       >
         <div className="mb-3.5">
           <label className="form-label">Title <span className="text-rose">*</span></label>
-          <input
-            className="form-input"
-            value={formData.title}
-            onChange={(e) => field('title', e.target.value)}
-            placeholder="e.g. Dua Before Sleep"
-            maxLength={120}
-          />
+          <input className="form-input" value={formData.title} onChange={(e) => field('title', e.target.value)} placeholder="e.g. Dua Before Sleep" maxLength={120} />
         </div>
         <div className="mb-3.5">
           <label className="form-label">Arabic Text</label>
-          <textarea
-            className="form-textarea arabic-input"
-            value={formData.arabic}
-            onChange={(e) => field('arabic', e.target.value)}
-            placeholder="ٱكْتُبِ ٱلدُّعَاءَ هُنَا"
-            dir="rtl"
-          />
+          <textarea className="form-textarea arabic-input" value={formData.arabic} onChange={(e) => field('arabic', e.target.value)} placeholder="ٱكْتُبِ ٱلدُّعَاءَ هُنَا" dir="rtl" />
         </div>
         <div className="mb-3.5">
           <label className="form-label">Translation</label>
-          <textarea
-            className="form-textarea"
-            value={formData.translation}
-            onChange={(e) => field('translation', e.target.value)}
-            placeholder="The English meaning of the dua…"
-          />
+          <textarea className="form-textarea" value={formData.translation} onChange={(e) => field('translation', e.target.value)} placeholder="The meaning of the dua…" />
         </div>
         <div>
           <label className="form-label">Reward / Virtue</label>
-          <textarea
-            className="form-textarea"
-            value={formData.reward}
-            onChange={(e) => field('reward', e.target.value)}
-            placeholder="The reward or virtue of reciting this dua…"
-          />
+          <textarea className="form-textarea" value={formData.reward} onChange={(e) => field('reward', e.target.value)} placeholder="The reward or virtue of reciting this dua…" />
         </div>
       </Modal>
-
-      {/* Delete confirm */}
-      <ConfirmDialog
-        open={!!confirmDua}
-        title="Delete dua?"
-        message={`"${confirmDua?.title}" will be permanently removed from the library.`}
-        onConfirm={async () => {
-          if (confirmDua) await duaStore.remove(confirmDua.id);
-          setConfirmDua(null);
-        }}
-        onCancel={() => setConfirmDua(null)}
-      />
-
-      {/* Add to collection */}
-      <AddToCollectionModal
-        open={!!addTarget}
-        dua={addTarget}
-        collections={store.cards}
-        onClose={() => setAddTarget(null)}
-        onAdd={handleAddToCollection}
-        onRemove={(cardId, subId) => store.deleteSubcard(cardId, subId)}
-      />
     </div>
   );
 }

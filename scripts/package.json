@@ -1,0 +1,14 @@
+{
+  "name": "adhkar-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "preview": "node scrape.mjs",
+    "import": "node import.mjs"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "firebase-admin": "^12.0.0"
+  }
+}
