@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CollectionCard } from '../components/CollectionCard';
 import { CardModal } from '../components/CardModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function HomePage({ store, onSignOut, displayName, email, photoURL }: Props) {
+  const navigate = useNavigate();
   const { cards, cloudEnabled, createCard, updateCard, deleteCard, clearLocal } = store;
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editingCard,  setEditingCard]  = useState<Card | null>(null);
@@ -52,6 +54,12 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/library')}
+            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13px] font-semibold text-ink shadow-soft-sm transition-transform active:scale-95"
+          >
+            Dua Library
+          </button>
           <button
             onClick={openNew}
             className="flex cursor-pointer items-center gap-1.5 rounded-xl border-0 bg-primary px-4 py-2.5 text-[13px] font-semibold text-card shadow-soft-sm transition-transform active:scale-95"

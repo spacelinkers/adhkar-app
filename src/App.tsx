@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { DetailPage } from './pages/DetailPage';
 import { SubDetailPage } from './pages/SubDetailPage';
+import { DuaLibraryPage } from './pages/DuaLibraryPage';
 
 export default function App() {
   const auth = useAuth();
@@ -41,9 +42,10 @@ export default function App() {
       <SyncStatus sync={store.sync} />
 
       <Routes>
-        <Route path="/"                          element={<HomePage    store={store} onSignOut={auth.signOut} displayName={auth.displayName} email={auth.email} photoURL={auth.photoURL} />} />
-        <Route path="/card/:cardId"              element={<DetailPage  store={store} />} />
-        <Route path="/card/:cardId/dua/:subId"   element={<SubDetailPage store={store} />} />
+        <Route path="/"                          element={<HomePage       store={store} onSignOut={auth.signOut} displayName={auth.displayName} email={auth.email} photoURL={auth.photoURL} />} />
+        <Route path="/library"                   element={<DuaLibraryPage store={store} isAdmin={auth.isAdmin} email={auth.email} />} />
+        <Route path="/card/:cardId"              element={<DetailPage     store={store} />} />
+        <Route path="/card/:cardId/dua/:subId"   element={<SubDetailPage  store={store} />} />
       </Routes>
     </BrowserRouter>
   );

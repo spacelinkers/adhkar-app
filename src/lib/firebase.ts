@@ -16,7 +16,16 @@ import {
   enableIndexedDbPersistence,
   doc,
   getDoc,
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  Unsubscribe,
 } from 'firebase/firestore';
+import type { Dua } from '../types';
 
 const config = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -64,4 +73,56 @@ export async function isEmailAllowed(email: string): Promise<boolean> {
   if (!db) return false;
   const snap = await getDoc(doc(db, 'allowlist', email));
   return snap.exists();
+}
+
+export async function isEmailAdmin(email: string): Promise<boolean> {
+  if (!db) return false;
+  const snap = await getDoc(doc(db, 'admins', email));
+  return snap.exists();
+}
+
+// ── Predefined Dua library ──
+
+export function subscribeToDuas(
+  onChange: (duas: Dua[]) => void,
+  onError: (err: Error) => void,
+): Unsubscribe {
+  if (!db) return () => {};
+  return onSnapshot(
+    query(collection(db, 'duas'), orderBy('createdAt', 'asc')),
+    (snap) => {
+      const duas: Dua[] = snap.docs.map((d) => ({
+        id: d.id,
+        title:       d.data().title       ?? '',
+        arabic:      d.data().arabic      ?? '',
+        translation: d.data().translation ?? '',
+        reward:      d.data().reward      ?? '',
+        createdAt:   d.data().createdAt   ?? 0,
+        createdBy:   d.data().createdBy   ?? '',
+      }));
+      onChange(duas);
+    },
+    (err) => onError(err as Error),
+  );
+}
+
+export async function addDua(
+  data: Omit<Dua, 'id'>,
+): Promise<string> {
+  if (!db) throw new Error('Firestore not initialised');
+  const ref = await addDoc(collection(db, 'duas'), data);
+  return ref.id;
+}
+
+export async function updateDua(
+  id: string,
+  patch: Partial<Omit<Dua, 'id'>>,
+): Promise<void> {
+  if (!db) throw new Error('Firestore not initialised');
+  await updateDoc(doc(db, 'duas', id), patch);
+}
+
+export async function deleteDua(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not initialised');
+  await deleteDoc(doc(db, 'duas', id));
 }

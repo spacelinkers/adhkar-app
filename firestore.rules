@@ -2,17 +2,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allowlist: each user can only read their own entry (to check if they're permitted)
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userEmail() {
+      return request.auth.token.email;
+    }
+    function isAllowed() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/allowlist/$(userEmail()));
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(userEmail()));
+    }
+
+    // ── Allowlist: each user reads only their own entry ───────────────────────
     match /allowlist/{email} {
-      allow read: if request.auth != null && request.auth.token.email == email;
+      allow read:  if isSignedIn() && userEmail() == email;
       allow write: if false;
     }
 
-    // User data: only accessible by the owner AND only if their email is on the allowlist
+    // ── Admins: each user reads only their own entry ──────────────────────────
+    match /admins/{email} {
+      allow read:  if isSignedIn() && userEmail() == email;
+      allow write: if false;
+    }
+
+    // ── Predefined Dua library ────────────────────────────────────────────────
+    // All allowed users can read; only admins can create / update / delete.
+    match /duas/{duaId} {
+      allow read:   if isAllowed();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Per-user data ─────────────────────────────────────────────────────────
+    // Owner access only, and email must still be on the allowlist.
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null
+      allow read, write: if isSignedIn()
         && request.auth.uid == userId
-        && exists(/databases/$(database)/documents/allowlist/$(request.auth.token.email));
+        && isAllowed();
     }
   }
 }

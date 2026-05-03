@@ -5,6 +5,7 @@ import {
   signInWithGoogle,
   signOutUser,
   isEmailAllowed,
+  isEmailAdmin,
 } from '../lib/firebase';
 
 export type AuthStatus = 'pending' | 'authed' | 'unauthenticated' | 'denied' | 'error';
@@ -15,6 +16,7 @@ export interface AuthState {
   email:       string | null;
   displayName: string | null;
   photoURL:    string | null;
+  isAdmin:     boolean;
   error:       string | null;
   signIn:  () => Promise<void>;
   signOut: () => Promise<void>;
@@ -26,6 +28,7 @@ export function useAuth(): AuthState {
   const [email,       setEmail]       = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [photoURL,    setPhotoURL]    = useState<string | null>(null);
+  const [isAdmin,     setIsAdmin]     = useState<boolean>(false);
   const [error,       setError]       = useState<string | null>(null);
 
   // Prevents the sign-out triggered by a denied user from resetting status back to 'unauthenticated'.
@@ -44,7 +47,10 @@ export function useAuth(): AuthState {
       }
 
       try {
-        const allowed = await isEmailAllowed(user.email);
+        const [allowed, admin] = await Promise.all([
+          isEmailAllowed(user.email),
+          isEmailAdmin(user.email),
+        ]);
         if (allowed) {
           deniedRef.current = false;
           setStatus('authed');
@@ -52,6 +58,7 @@ export function useAuth(): AuthState {
           setEmail(user.email);
           setDisplayName(user.displayName);
           setPhotoURL(user.photoURL);
+          setIsAdmin(admin);
           setError(null);
         } else {
           deniedRef.current = true;
@@ -62,6 +69,7 @@ export function useAuth(): AuthState {
           setEmail(deniedEmail);
           setDisplayName(null);
           setPhotoURL(null);
+          setIsAdmin(false);
         }
       } catch (err) {
         deniedRef.current = false;
@@ -97,8 +105,9 @@ export function useAuth(): AuthState {
     setEmail(null);
     setDisplayName(null);
     setPhotoURL(null);
+    setIsAdmin(false);
     setError(null);
   }, []);
 
-  return { status, userId, email, displayName, photoURL, error, signIn, signOut };
+  return { status, userId, email, displayName, photoURL, isAdmin, error, signIn, signOut };
 }
