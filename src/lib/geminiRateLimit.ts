@@ -1,5 +1,5 @@
-const DAILY_LIMIT  = 10;
-const MINUTE_LIMIT = 1; // gemini-2.5-flash free tier: 5 RPM; 4 gives safe headroom
+const DAILY_LIMIT  = 10; //emini-2.5-flash free tier: 20 RPD;
+const MINUTE_LIMIT = 1; // gemini-2.5-flash free tier: 5 RPM;
 const STORAGE_KEY  = 'gemini_usage';
 
 interface GeminiUsage {
