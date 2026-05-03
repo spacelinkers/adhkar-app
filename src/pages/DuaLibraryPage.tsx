@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, ChevronRight } from '../components/Icons';
 import { Modal } from '../components/Modal';
+import { ImageExtractButton } from '../components/ImageExtractButton';
 import { useDuas } from '../hooks/useDuas';
+import { useImageExtract } from '../hooks/useImageExtract';
 import type { UseCardsResult } from '../hooks/useCards';
 import type { Dua } from '../types';
 
@@ -17,8 +19,9 @@ const EMPTY: Omit<Dua, 'id' | 'createdAt' | 'createdBy'> = {
 };
 
 export function DuaLibraryPage({ isAdmin, email }: Props) {
-  const navigate = useNavigate();
-  const duaStore = useDuas(true);
+  const navigate    = useNavigate();
+  const duaStore    = useDuas(true);
+  const imgExtract  = useImageExtract();
 
   // Admin: new dua form
   const [formOpen, setFormOpen] = useState(false);
@@ -43,6 +46,15 @@ export function DuaLibraryPage({ isAdmin, email }: Props) {
   const openNew = () => {
     setFormData(EMPTY);
     setFormOpen(true);
+  };
+
+  const handleExtracted = (data: { title: string; arabic: string; translation: string }) => {
+    setFormData((prev) => ({
+      ...prev,
+      title:       data.title       || prev.title,
+      arabic:      data.arabic      || prev.arabic,
+      translation: data.translation || prev.translation,
+    }));
   };
 
   const handleSave = async () => {
@@ -157,12 +169,22 @@ export function DuaLibraryPage({ isAdmin, email }: Props) {
         }
       >
         <div className="mb-3.5">
-          <label className="form-label">Title <span className="text-rose">*</span></label>
-          <input className="form-input" value={formData.title} onChange={(e) => field('title', e.target.value)} placeholder="e.g. Dua Before Sleep" maxLength={120} />
+          <div className="mb-2 flex items-center justify-between">
+            <label className="form-label mb-0">Arabic Text</label>
+            <ImageExtractButton
+              extract={imgExtract.extract}
+              loading={imgExtract.loading}
+              error={imgExtract.error}
+              onClearError={imgExtract.clearError}
+              onExtracted={handleExtracted}
+              dailyRemaining={imgExtract.dailyRemaining}
+            />
+          </div>
+          <textarea className="form-textarea arabic-input" value={formData.arabic} onChange={(e) => field('arabic', e.target.value)} placeholder="ٱكْتُبِ ٱلدُّعَاءَ هُنَا" dir="rtl" />
         </div>
         <div className="mb-3.5">
-          <label className="form-label">Arabic Text</label>
-          <textarea className="form-textarea arabic-input" value={formData.arabic} onChange={(e) => field('arabic', e.target.value)} placeholder="ٱكْتُبِ ٱلدُّعَاءَ هُنَا" dir="rtl" />
+          <label className="form-label">Title <span className="text-rose">*</span></label>
+          <input className="form-input" value={formData.title} onChange={(e) => field('title', e.target.value)} placeholder="e.g. Dua Before Sleep" maxLength={120} />
         </div>
         <div className="mb-3.5">
           <label className="form-label">Translation</label>
