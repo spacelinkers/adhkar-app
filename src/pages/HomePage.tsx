@@ -55,12 +55,6 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate('/library')}
-            className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13px] font-semibold text-ink shadow-soft-sm transition-transform active:scale-95"
-          >
-            Dua Library
-          </button>
-          <button
             onClick={openNew}
             className="flex cursor-pointer items-center gap-1.5 rounded-xl border-0 bg-primary px-4 py-2.5 text-[13px] font-semibold text-card shadow-soft-sm transition-transform active:scale-95"
           >
@@ -129,6 +123,21 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
       <main className="mx-auto max-w-[720px] pb-32">
         <InspirationCard />
 
+        {/* Dua Library entry point */}
+        <button
+          onClick={() => navigate('/library')}
+          className="mx-4 mb-4 w-[calc(100%-2rem)] cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-teal-600 to-cyan-900 px-5 py-6 text-center shadow-soft-md transition-transform active:scale-[.98]"
+        >
+          <div className="mb-1.5 inline-block rounded-full bg-white/20 px-3 py-0.5 text-[9px] font-bold uppercase tracking-[2px] text-white">
+            Dua Library
+          </div>
+          <div className="my-2 font-arabic text-[24px] leading-[1.95] text-white" dir="rtl">
+            ٱدْعُونِي أَسْتَجِبْ لَكُمْ
+          </div>
+          <p className="mb-0.5 text-[13px] font-semibold text-white">Call upon Me, I will respond</p>
+          <p className="m-0 text-[11.5px] text-white/65">Browse duas &amp; add to your collections</p>
+        </button>
+
         <div className="px-4">
           {cards.length === 0 ? (
             <div className="mt-8 rounded-2xl border border-dashed border-line bg-card px-5 py-14 text-center">
@@ -170,11 +179,8 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
       <button
         onClick={openNew}
         aria-label="Add collection"
-        className="fixed bottom-[22px] right-1/2 z-40 grid h-14 w-14 cursor-pointer place-items-center rounded-2xl border-0 bg-primary text-card transition-transform active:scale-90"
-        style={{
-          transform: 'translateX(min(338px, 50vw))',
-          boxShadow: '0 8px 24px rgba(15,61,46,.35), 0 2px 6px rgba(15,61,46,.2)',
-        }}
+        className="fixed bottom-6 right-5 z-40 grid h-14 w-14 cursor-pointer place-items-center rounded-2xl border-0 bg-primary text-card transition-transform active:scale-90"
+        style={{ boxShadow: '0 8px 24px rgba(15,61,46,.35), 0 2px 6px rgba(15,61,46,.2)' }}
       >
         <Plus className="h-[22px] w-[22px]" />
       </button>
