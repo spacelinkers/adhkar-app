@@ -4,9 +4,11 @@ import { BrandBar } from '../components/BrandBar';
 import { SubcardModal } from '../components/SubcardModal';
 import { CardModal } from '../components/CardModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { NotificationModal } from '../components/NotificationModal';
 import { Edit, Trash, Plus } from '../components/Icons';
 import type { Subcard } from '../types';
 import type { UseCardsResult } from '../hooks/useCards';
+import type { UseNotifSchedulesResult } from '../hooks/useNotifSchedules';
 
 function DotsIcon() {
   return (
@@ -19,10 +21,12 @@ function DotsIcon() {
 }
 
 interface Props {
-  store: UseCardsResult;
+  store:       UseCardsResult;
+  userId:      string | null;
+  notifStore:  UseNotifSchedulesResult;
 }
 
-export function DetailPage({ store }: Props) {
+export function DetailPage({ store, userId, notifStore }: Props) {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
   const card = store.cards.find((c) => c.id === cardId);
@@ -54,7 +58,18 @@ export function DetailPage({ store }: Props) {
         subtitle={`${subs.length} ${subs.length === 1 ? 'entry' : 'entries'}`}
         onBack={() => navigate('/')}
         rightSlot={
-          <div className="relative">
+          <div className="flex items-center gap-1">
+            {userId && (
+              <NotificationModal
+                type="card"
+                targetId={card.id}
+                cardId={card.id}
+                title={card.title}
+                userId={userId}
+                notifStore={notifStore}
+              />
+            )}
+            <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Settings"
@@ -85,6 +100,7 @@ export function DetailPage({ store }: Props) {
                 </div>
               </>
             )}
+            </div>
           </div>
         }
       />

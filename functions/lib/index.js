@@ -33,11 +33,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractDuaFromImage = void 0;
+exports.sendScheduledNotifications = exports.extractDuaFromImage = void 0;
 const https_1 = require("firebase-functions/v2/https");
+const scheduler_1 = require("firebase-functions/v2/scheduler");
 const params_1 = require("firebase-functions/params");
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
+const APP_URL = (0, params_1.defineString)('APP_URL', { default: 'https://your-app.web.app' });
 const GEMINI_API_KEY = (0, params_1.defineSecret)('GEMINI_API_KEY');
 const DAILY_LIMIT = 20;
 exports.extractDuaFromImage = (0, https_1.onCall)({ secrets: [GEMINI_API_KEY], region: 'us-central1' }, async (request) => {
@@ -137,5 +139,93 @@ Do not include any explanation outside the JSON.`;
         usedToday: newCount,
         remainingToday: DAILY_LIMIT - newCount,
     };
+});
+// ── Scheduled notification sender ─────────────────────────────────────────────
+// Runs every minute via Cloud Scheduler and sends FCM pushes for due reminders.
+function getTimeParts(date, tz) {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
+    const time = `${parts.hour}:${parts.minute}`;
+    const today = `${parts.year}-${parts.month}-${parts.day}`;
+    const day = new Date(`${today}T12:00:00`).getDay(); // 0=Sun
+    return { time, day, today };
+}
+exports.sendScheduledNotifications = (0, scheduler_1.onSchedule)({ schedule: 'every 1 minutes', region: 'us-central1', timeoutSeconds: 55 }, async () => {
+    var _a, _b, _c;
+    const db = admin.firestore();
+    const now = new Date();
+    // Fetch all user schedule sub-collections via collection group
+    const schedulesSnap = await db
+        .collectionGroup('schedules')
+        .where('enabled', '==', true)
+        .get();
+    if (schedulesSnap.empty)
+        return;
+    // Group by userId (parent path: users/{userId}/schedules/{id})
+    const byUser = new Map();
+    for (const d of schedulesSnap.docs) {
+        const userId = (_a = d.ref.parent.parent) === null || _a === void 0 ? void 0 : _a.id;
+        if (!userId)
+            continue;
+        if (!byUser.has(userId))
+            byUser.set(userId, []);
+        byUser.get(userId).push(d);
+    }
+    const appUrl = APP_URL.value();
+    for (const [userId, docs] of byUser) {
+        // Get FCM token
+        const fcmSnap = await db.collection('users').doc(userId)
+            .collection('meta').doc('fcm').get();
+        const fcmToken = (_b = fcmSnap.data()) === null || _b === void 0 ? void 0 : _b.token;
+        if (!fcmToken)
+            continue;
+        for (const schedDoc of docs) {
+            const s = schedDoc.data();
+            const tz = s.tz || 'UTC';
+            const { time, day, today } = getTimeParts(now, tz);
+            if (s.time !== time)
+                continue;
+            const days = (_c = s.days) !== null && _c !== void 0 ? _c : [];
+            if (days.length > 0 && !days.includes(day))
+                continue;
+            if (s.lastSentDate === today)
+                continue;
+            try {
+                await admin.messaging().send({
+                    token: fcmToken,
+                    data: {
+                        title: `⏰ ${s.title}`,
+                        body: 'Tap Done when finished',
+                        scheduleId: schedDoc.id,
+                        userId,
+                        date: today,
+                    },
+                    webpush: {
+                        notification: {
+                            title: `⏰ ${s.title}`,
+                            body: 'Tap Done when finished',
+                            icon: `${appUrl}/icon-192.png`,
+                            requireInteraction: true,
+                            actions: [{ action: 'done', title: '✓ Done' }],
+                        },
+                        fcmOptions: { link: `${appUrl}/?done=${schedDoc.id}&date=${today}` },
+                    },
+                    android: { priority: 'high' },
+                });
+                await schedDoc.ref.update({ lastSentDate: today });
+            }
+            catch (err) {
+                console.error(`sendScheduledNotifications: failed for user ${userId}:`, err);
+            }
+        }
+    }
 });
 //# sourceMappingURL=index.js.map

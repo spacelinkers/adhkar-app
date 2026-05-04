@@ -26,6 +26,19 @@ export interface Dua {
   createdBy: string;
 }
 
+export interface NotifSchedule {
+  id:           string;
+  type:         'card' | 'subcard';
+  targetId:     string;
+  cardId:       string;
+  title:        string;
+  time:         string;       // "HH:MM"
+  days:         number[];     // 0=Sun..6=Sat; empty = every day
+  enabled:      boolean;
+  tz:           string;       // IANA timezone e.g. "Asia/Dhaka"
+  lastSentDate: string | null;
+}
+
 export type SyncKind = 'idle' | 'syncing' | 'ok' | 'error' | 'offline';
 
 export interface SyncState {

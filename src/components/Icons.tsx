@@ -44,3 +44,13 @@ export const Book = (p: SVGProps<SVGSVGElement>) => (
     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
   </svg>
 );
+export const Bell = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...baseProps} {...p}>
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+export const BellOff = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...baseProps} {...p}>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0M18.63 13A17.9 17.9 0 0 1 18 8M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14M18 8a6 6 0 0 0-9.33-5M1 1l22 22" />
+  </svg>
+);

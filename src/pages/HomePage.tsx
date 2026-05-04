@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CollectionCard } from '../components/CollectionCard';
 import { CardModal } from '../components/CardModal';
@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Plus, Logo } from '../components/Icons';
 import { InspirationCard } from '../components/InspirationCard';
 import type { UseCardsResult } from '../hooks/useCards';
+import type { UseNotifSchedulesResult } from '../hooks/useNotifSchedules';
 
 interface Props {
   store:       UseCardsResult;
@@ -13,20 +14,38 @@ interface Props {
   displayName: string | null;
   email:       string | null;
   photoURL:    string | null;
+  userId:      string | null;
+  notifStore:  UseNotifSchedulesResult;
 }
 
-export function HomePage({ store, onSignOut, displayName, email, photoURL }: Props) {
+export function HomePage({ store, onSignOut, displayName, email, photoURL, notifStore }: Props) {
   const navigate = useNavigate();
   const { cards, cloudEnabled, createCard, clearLocal } = store;
   const [modalOpen,    setModalOpen]    = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [avatarOpen,   setAvatarOpen]   = useState(false);
+  const [doneToast,    setDoneToast]    = useState('');
 
   const openNew = () => setModalOpen(true);
 
   const handleSave = async (title: string, desc: string) => {
     await createCard(title, desc);
   };
+
+  // Handle ?done=scheduleId&date=… from notification "Done" tap
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const scheduleId = params.get('done');
+    const date       = params.get('date');
+    if (!scheduleId || !date) return;
+    window.history.replaceState({}, '', '/');
+    notifStore.markDone(scheduleId).then(() => {
+      const s = notifStore.schedules.find((x) => x.id === scheduleId);
+      setDoneToast(`"${s?.title ?? 'Reminder'}" marked as done ✓`);
+      setTimeout(() => setDoneToast(''), 4000);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const initials = displayName
     ? displayName.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
@@ -116,7 +135,19 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
       </header>
 
       <main className="mx-auto max-w-[720px] pb-32">
+        {/* Done toast */}
+        {doneToast && (
+          <div className="mx-4 mb-3 mt-1 rounded-xl bg-primary px-4 py-3 text-[13px] font-semibold text-card shadow-soft-md">
+            {doneToast}
+          </div>
+        )}
+
         <InspirationCard />
+
+        {/* Today's reminders stats */}
+        {notifStore.todaySchedules.length > 0 && (
+          <TodayStats schedules={notifStore.todaySchedules} done={notifStore.todayDone} onNavigate={navigate} />
+        )}
 
         {/* Dua Library entry point */}
         <button
@@ -198,5 +229,68 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
         onCancel={() => setConfirmClear(false)}
       />
     </>
+  );
+}
+
+// ── Today's Reminders Stats ──────────────────────────────────────────────────
+import type { NotifSchedule } from '../types';
+import type { NavigateFunction } from 'react-router-dom';
+
+function TodayStats({
+  schedules,
+  done,
+  onNavigate,
+}: {
+  schedules:  NotifSchedule[];
+  done:       Record<string, boolean>;
+  onNavigate: NavigateFunction;
+}) {
+  const doneCount  = schedules.filter((s) => done[s.id]).length;
+  const totalCount = schedules.length;
+  const allDone    = doneCount === totalCount;
+
+  return (
+    <div className="mx-4 mb-4 rounded-xl border border-line-soft bg-card shadow-soft-sm">
+      {/* Header row */}
+      <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
+        <span className="text-[13px] font-bold text-ink">Today's Reminders</span>
+        <span className={`text-[12px] font-semibold ${allDone ? 'text-primary' : 'text-ink-mute'}`}>
+          {doneCount} / {totalCount} done
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mx-4 mt-2.5 h-1.5 overflow-hidden rounded-full bg-line-soft">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%` }}
+        />
+      </div>
+
+      {/* List */}
+      <div className="divide-y divide-line-soft px-4 py-1">
+        {schedules.map((s) => {
+          const isDone = !!done[s.id];
+          const path   = s.type === 'card' ? `/card/${s.targetId}` : `/card/${s.cardId}/dua/${s.targetId}`;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onNavigate(path)}
+              className="flex w-full cursor-pointer items-center gap-3 py-2.5 text-left"
+            >
+              <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                isDone ? 'bg-primary text-card' : 'border border-line text-ink-mute'
+              }`}>
+                {isDone ? '✓' : ''}
+              </span>
+              <span className={`flex-1 text-[13px] font-medium ${isDone ? 'text-ink-mute line-through' : 'text-ink'}`}>
+                {s.title}
+              </span>
+              <span className="text-[11px] text-ink-mute">{s.time}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
