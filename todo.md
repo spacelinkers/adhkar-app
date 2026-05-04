@@ -1,6 +1,7 @@
 ## TO DO List
 
-1. Implement Screenshot extraction using Gemini AI.
+1. Implement Screenshot extraction using Gemini AI. DONE
+
 2. Use notification to remind the Amal in times. 
 3. Track Amal and show statics in months to check how many times you miss your Amal.
 

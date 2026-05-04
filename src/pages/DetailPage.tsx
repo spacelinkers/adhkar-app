@@ -8,6 +8,16 @@ import { Edit, Trash, Plus } from '../components/Icons';
 import type { Subcard } from '../types';
 import type { UseCardsResult } from '../hooks/useCards';
 
+function DotsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+      <circle cx="5"  cy="12" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="19" cy="12" r="1.5" />
+    </svg>
+  );
+}
+
 interface Props {
   store: UseCardsResult;
 }
@@ -16,10 +26,11 @@ export function DetailPage({ store }: Props) {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
   const card = store.cards.find((c) => c.id === cardId);
-  const [subModalOpen, setSubModalOpen] = useState(false);
-  const [editingSub, setEditingSub] = useState<Subcard | null>(null);
-  const [editCardOpen, setEditCardOpen] = useState(false);
+  const [subModalOpen,  setSubModalOpen]  = useState(false);
+  const [editingSub,    setEditingSub]    = useState<Subcard | null>(null);
+  const [editCardOpen,  setEditCardOpen]  = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [menuOpen,      setMenuOpen]      = useState(false);
 
   if (!store.isLoaded) return null;
   if (!card) return <Navigate to="/" replace />;
@@ -43,21 +54,37 @@ export function DetailPage({ store }: Props) {
         subtitle={`${subs.length} ${subs.length === 1 ? 'entry' : 'entries'}`}
         onBack={() => navigate('/')}
         rightSlot={
-          <div className="flex gap-1">
+          <div className="relative">
             <button
-              onClick={() => setEditCardOpen(true)}
-              aria-label="Edit collection"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Settings"
               className="grid h-9 w-9 cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink-soft active:bg-line-soft"
             >
-              <Edit className="h-4 w-4" />
+              <DotsIcon />
             </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              aria-label="Delete collection"
-              className="grid h-9 w-9 cursor-pointer place-items-center rounded-xl border border-line bg-card text-ink-soft active:bg-line-soft active:text-rose"
-            >
-              <Trash className="h-4 w-4" />
-            </button>
+
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-44 overflow-hidden rounded-2xl border border-line bg-card shadow-soft-lg animate-pop">
+                  <button
+                    onClick={() => { setMenuOpen(false); setEditCardOpen(true); }}
+                    className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-[13.5px] font-medium text-ink transition-colors hover:bg-line-soft"
+                  >
+                    <Edit className="h-4 w-4 text-ink-mute" />
+                    Edit collection
+                  </button>
+                  <div className="mx-4 border-t border-line-soft" />
+                  <button
+                    onClick={() => { setMenuOpen(false); setConfirmDelete(true); }}
+                    className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-3 text-[13.5px] font-medium text-rose transition-colors hover:bg-line-soft"
+                  >
+                    <Trash className="h-4 w-4" />
+                    Delete collection
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         }
       />

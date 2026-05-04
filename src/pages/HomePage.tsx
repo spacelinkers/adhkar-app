@@ -5,7 +5,6 @@ import { CardModal } from '../components/CardModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Plus, Logo } from '../components/Icons';
 import { InspirationCard } from '../components/InspirationCard';
-import type { Card } from '../types';
 import type { UseCardsResult } from '../hooks/useCards';
 
 interface Props {
@@ -18,19 +17,15 @@ interface Props {
 
 export function HomePage({ store, onSignOut, displayName, email, photoURL }: Props) {
   const navigate = useNavigate();
-  const { cards, cloudEnabled, createCard, updateCard, deleteCard, clearLocal } = store;
+  const { cards, cloudEnabled, createCard, clearLocal } = store;
   const [modalOpen,    setModalOpen]    = useState(false);
-  const [editingCard,  setEditingCard]  = useState<Card | null>(null);
-  const [confirmCard,  setConfirmCard]  = useState<Card | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [avatarOpen,   setAvatarOpen]   = useState(false);
 
-  const openNew  = () => { setEditingCard(null); setModalOpen(true); };
-  const openEdit = (card: Card) => { setEditingCard(card); setModalOpen(true); };
+  const openNew = () => setModalOpen(true);
 
   const handleSave = async (title: string, desc: string) => {
-    if (editingCard) await updateCard(editingCard.id, { title, desc });
-    else             await createCard(title, desc);
+    await createCard(title, desc);
   };
 
   const initials = displayName
@@ -153,8 +148,6 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
                 <CollectionCard
                   key={c.id}
                   card={c}
-                  onEdit={openEdit}
-                  onDelete={(card) => setConfirmCard(card)}
                 />
               ))}
             </div>
@@ -187,23 +180,9 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL }: Pro
 
       <CardModal
         open={modalOpen}
-        card={editingCard}
+        card={null}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
-      />
-
-      <ConfirmDialog
-        open={!!confirmCard}
-        title="Delete collection?"
-        message={
-          confirmCard
-            ? `"${confirmCard.title}" and all ${confirmCard.subcards?.length || 0} entr${
-                (confirmCard.subcards?.length || 0) === 1 ? 'y' : 'ies'
-              } inside will be removed.`
-            : ''
-        }
-        onConfirm={async () => { if (confirmCard) await deleteCard(confirmCard.id); setConfirmCard(null); }}
-        onCancel={() => setConfirmCard(null)}
       />
 
       <ConfirmDialog
