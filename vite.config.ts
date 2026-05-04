@@ -24,6 +24,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        importScripts: ['alarm-logic.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,woff2}'],
         runtimeCaching: [
           {

@@ -1,82 +1,80 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  collection, doc, onSnapshot, setDoc, deleteDoc,
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import type { NotifSchedule } from '../types';
 
+const LS_SCHEDULES = 'adhkar_schedules';
+const LS_DONE_PFX  = 'adhkar_done_';
+
 export interface UseNotifSchedulesResult {
-  schedules:        NotifSchedule[];
-  todayDone:        Record<string, boolean>; // scheduleId → true if done today
-  todaySchedules:   NotifSchedule[];         // enabled schedules active today
-  setSchedule:      (s: Omit<NotifSchedule, 'id' | 'lastSentDate'>) => Promise<void>;
-  removeSchedule:   (scheduleId: string) => Promise<void>;
-  markDone:         (scheduleId: string) => Promise<void>;
-  getFor:           (type: 'card' | 'subcard', targetId: string) => NotifSchedule | undefined;
-  permissionState:  NotificationPermission | 'unsupported';
-  requestPermission:(userId: string) => Promise<boolean>;
+  schedules:         NotifSchedule[];
+  todayDone:         Record<string, boolean>;
+  todaySchedules:    NotifSchedule[];
+  setSchedule:       (s: Omit<NotifSchedule, 'id' | 'lastSentDate'>) => Promise<void>;
+  removeSchedule:    (scheduleId: string) => Promise<void>;
+  markDone:          (scheduleId: string) => Promise<void>;
+  getFor:            (type: 'card' | 'subcard', targetId: string) => NotifSchedule | undefined;
+  permissionState:   NotificationPermission | 'unsupported';
+  requestPermission: (_userId: string) => Promise<boolean>;
 }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 function isActiveToday(s: NotifSchedule): boolean {
   if (!s.enabled) return false;
-  if (s.days.length === 0) return true;
-  return s.days.includes(new Date().getDay());
+  return s.days.length === 0 || s.days.includes(new Date().getDay());
 }
 
-export function useNotifSchedules(userId: string | null): UseNotifSchedulesResult {
-  const [schedules, setSchedules] = useState<NotifSchedule[]>([]);
-  const [todayDone, setTodayDone] = useState<Record<string, boolean>>({});
+function readSchedules(): NotifSchedule[] {
+  try { return JSON.parse(localStorage.getItem(LS_SCHEDULES) ?? '[]'); }
+  catch { return []; }
+}
+
+function readDoneToday(): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(LS_DONE_PFX + todayISO()) ?? '{}'); }
+  catch { return {}; }
+}
+
+async function postToSW(msg: object) {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    reg.active?.postMessage(msg);
+  } catch { /* SW unavailable */ }
+}
+
+export function useNotifSchedules(_userId: string | null): UseNotifSchedulesResult {
+  const [schedules, setSchedules] = useState<NotifSchedule[]>(readSchedules);
+  const [todayDone, setTodayDone] = useState<Record<string, boolean>>(readDoneToday);
   const [permissionState, setPermissionState] = useState<NotificationPermission | 'unsupported'>(
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
   );
 
-  // Subscribe to schedules
+  // Re-register all alarms in the SW whenever the schedule list changes.
   useEffect(() => {
-    if (!userId || !db) return;
-    return onSnapshot(collection(db, 'users', userId, 'schedules'), (snap) => {
-      setSchedules(snap.docs.map((d) => ({ id: d.id, ...d.data() } as NotifSchedule)));
-    });
-  }, [userId]);
-
-  // Subscribe to today's completions document
-  useEffect(() => {
-    if (!userId || !db) return;
-    const today = todayISO();
-    return onSnapshot(doc(db, 'users', userId, 'completions', today), (snap) => {
-      const data = snap.data() ?? {};
-      const done: Record<string, boolean> = {};
-      Object.keys(data).forEach((k) => { done[k] = true; });
-      setTodayDone(done);
-    });
-  }, [userId]);
+    postToSW({ type: 'SYNC_ALARMS', schedules });
+  }, [schedules]);
 
   const setSchedule = useCallback(async (s: Omit<NotifSchedule, 'id' | 'lastSentDate'>) => {
-    if (!userId || !db) return;
     const id = `${s.type}_${s.targetId}`;
-    await setDoc(doc(db, 'users', userId, 'schedules', id), {
-      ...s,
-      lastSentDate: null,
+    setSchedules((prev) => {
+      const list = [...prev.filter((x) => x.id !== id), { ...s, id, lastSentDate: null }];
+      localStorage.setItem(LS_SCHEDULES, JSON.stringify(list));
+      return list;
     });
-  }, [userId]);
+  }, []);
 
   const removeSchedule = useCallback(async (scheduleId: string) => {
-    if (!userId || !db) return;
-    await deleteDoc(doc(db, 'users', userId, 'schedules', scheduleId));
-  }, [userId]);
+    setSchedules((prev) => {
+      const list = prev.filter((x) => x.id !== scheduleId);
+      localStorage.setItem(LS_SCHEDULES, JSON.stringify(list));
+      return list;
+    });
+  }, []);
 
   const markDone = useCallback(async (scheduleId: string) => {
-    if (!userId || !db) return;
-    const today = todayISO();
-    await setDoc(
-      doc(db, 'users', userId, 'completions', today),
-      { [scheduleId]: { completedAt: Date.now() } },
-      { merge: true },
-    );
-  }, [userId]);
+    const updated = { ...readDoneToday(), [scheduleId]: true };
+    localStorage.setItem(LS_DONE_PFX + todayISO(), JSON.stringify(updated));
+    setTodayDone(updated);
+  }, []);
 
   const getFor = useCallback(
     (type: 'card' | 'subcard', targetId: string) =>
@@ -84,20 +82,17 @@ export function useNotifSchedules(userId: string | null): UseNotifSchedulesResul
     [schedules],
   );
 
-  const requestPermission = useCallback(async (uid: string): Promise<boolean> => {
-    const { requestNotificationPermission } = await import('../lib/fcm');
-    const token = await requestNotificationPermission(uid);
-    const state = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported' as const;
-    setPermissionState(state);
-    return !!token;
+  const requestPermission = useCallback(async (_uid: string): Promise<boolean> => {
+    if (typeof Notification === 'undefined') return false;
+    const result = await Notification.requestPermission();
+    setPermissionState(result);
+    return result === 'granted';
   }, []);
-
-  const todaySchedules = schedules.filter(isActiveToday);
 
   return {
     schedules,
     todayDone,
-    todaySchedules,
+    todaySchedules: schedules.filter(isActiveToday),
     setSchedule,
     removeSchedule,
     markDone,

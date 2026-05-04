@@ -1,11 +1,8 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { defineSecret, defineString } from 'firebase-functions/params';
+import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 
 admin.initializeApp();
-
-const APP_URL = defineString('APP_URL', { default: 'https://your-app.web.app' });
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const DAILY_LIMIT = 20;
@@ -142,99 +139,3 @@ Do not include any explanation outside the JSON.`;
   },
 );
 
-// ── Scheduled notification sender ─────────────────────────────────────────────
-// Runs every minute via Cloud Scheduler and sends FCM pushes for due reminders.
-
-function getTimeParts(date: Date, tz: string): { time: string; day: number; today: string } {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
-    year:     'numeric',
-    month:    '2-digit',
-    day:      '2-digit',
-    hour:     '2-digit',
-    minute:   '2-digit',
-    hour12:   false,
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
-  const time  = `${parts.hour}:${parts.minute}`;
-  const today = `${parts.year}-${parts.month}-${parts.day}`;
-  const day   = new Date(`${today}T12:00:00`).getDay(); // 0=Sun
-  return { time, day, today };
-}
-
-export const sendScheduledNotifications = onSchedule(
-  { schedule: 'every 1 minutes', region: 'us-central1', timeoutSeconds: 55 },
-  async () => {
-    const db  = admin.firestore();
-    const now = new Date();
-
-    // Fetch all user schedule sub-collections via collection group
-    const schedulesSnap = await db
-      .collectionGroup('schedules')
-      .where('enabled', '==', true)
-      .get();
-
-    if (schedulesSnap.empty) return;
-
-    // Group by userId (parent path: users/{userId}/schedules/{id})
-    const byUser = new Map<string, typeof schedulesSnap.docs>();
-    for (const d of schedulesSnap.docs) {
-      const userId = d.ref.parent.parent?.id;
-      if (!userId) continue;
-      if (!byUser.has(userId)) byUser.set(userId, []);
-      byUser.get(userId)!.push(d);
-    }
-
-    const appUrl = APP_URL.value();
-
-    for (const [userId, docs] of byUser) {
-      // Get FCM token
-      const fcmSnap = await db.collection('users').doc(userId)
-        .collection('meta').doc('fcm').get();
-      const fcmToken = fcmSnap.data()?.token as string | undefined;
-      if (!fcmToken) continue;
-
-      for (const schedDoc of docs) {
-        const s = schedDoc.data();
-        const tz = (s.tz as string | undefined) || 'UTC';
-
-        const { time, day, today } = getTimeParts(now, tz);
-
-        if (s.time !== time) continue;
-
-        const days: number[] = s.days ?? [];
-        if (days.length > 0 && !days.includes(day)) continue;
-
-        if (s.lastSentDate === today) continue;
-
-        try {
-          await admin.messaging().send({
-            token: fcmToken,
-            data: {
-              title:      `⏰ ${s.title as string}`,
-              body:       'Tap Done when finished',
-              scheduleId: schedDoc.id,
-              userId,
-              date:       today,
-            },
-            webpush: {
-              notification: {
-                title:              `⏰ ${s.title as string}`,
-                body:               'Tap Done when finished',
-                icon:               `${appUrl}/icon-192.png`,
-                requireInteraction: true,
-                actions:            [{ action: 'done', title: '✓ Done' }],
-              },
-              fcmOptions: { link: `${appUrl}/?done=${schedDoc.id}&date=${today}` },
-            },
-            android: { priority: 'high' },
-          });
-
-          await schedDoc.ref.update({ lastSentDate: today });
-        } catch (err) {
-          console.error(`sendScheduledNotifications: failed for user ${userId}:`, err);
-        }
-      }
-    }
-  },
-);
