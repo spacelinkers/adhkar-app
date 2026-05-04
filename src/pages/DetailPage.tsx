@@ -59,16 +59,14 @@ export function DetailPage({ store, userId, notifStore }: Props) {
         onBack={() => navigate('/')}
         rightSlot={
           <div className="flex items-center gap-1">
-            {userId && (
-              <NotificationModal
-                type="card"
-                targetId={card.id}
-                cardId={card.id}
-                title={card.title}
-                userId={userId}
-                notifStore={notifStore}
-              />
-            )}
+            <NotificationModal
+              type="card"
+              targetId={card.id}
+              cardId={card.id}
+              title={card.title}
+              userId={userId}
+              notifStore={notifStore}
+            />
             <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}

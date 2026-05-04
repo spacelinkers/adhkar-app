@@ -52,16 +52,14 @@ export function SubDetailPage({ store, userId, notifStore }: Props) {
         </div>
 
         <div className="flex items-center gap-1">
-          {userId && (
-            <NotificationModal
-              type="subcard"
-              targetId={sub.id}
-              cardId={card.id}
-              title={sub.title || card.title}
-              userId={userId}
-              notifStore={notifStore}
-            />
-          )}
+          <NotificationModal
+            type="subcard"
+            targetId={sub.id}
+            cardId={card.id}
+            title={sub.title || card.title}
+            userId={userId}
+            notifStore={notifStore}
+          />
 
           {/* ⋯ menu */}
           <div className="relative">

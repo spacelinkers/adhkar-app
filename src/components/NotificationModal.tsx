@@ -9,7 +9,7 @@ interface Props {
   targetId:   string;
   cardId:     string;
   title:      string;
-  userId:     string;
+  userId?:    string | null;
   notifStore: UseNotifSchedulesResult;
 }
 
@@ -28,16 +28,13 @@ export function NotifBellButton({
     <button
       onClick={onClick}
       aria-label="Set reminder"
-      className={`relative grid h-9 w-9 cursor-pointer place-items-center rounded-xl transition-all active:scale-95 ${
+      className={`grid h-9 w-9 cursor-pointer place-items-center rounded-xl transition-all active:scale-95 ${
         hasSchedule
-          ? 'text-primary'
-          : 'text-ink-mute hover:text-ink-soft'
+          ? 'text-ink'
+          : 'text-ink-mute/40 hover:text-ink-mute'
       }`}
     >
       <Bell className="h-4 w-4" />
-      <span className={`absolute left-1.5 top-1.5 h-2 w-2 rounded-full ring-2 ring-card ${
-        hasSchedule ? 'bg-primary' : 'bg-line'
-      }`} />
     </button>
   );
 }
@@ -65,7 +62,7 @@ export function NotificationModal({ type, targetId, cardId, title, userId, notif
     setSaving(true);
     try {
       if (notifStore.permissionState !== 'granted') {
-        const granted = await notifStore.requestPermission(userId);
+        const granted = await notifStore.requestPermission(userId ?? '');
         if (!granted) return;
       }
       await notifStore.setSchedule({
