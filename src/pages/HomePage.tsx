@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CollectionCard } from '../components/CollectionCard';
 import { CardModal } from '../components/CardModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Plus, Logo } from '../components/Icons';
+import { Plus, Logo, X } from '../components/Icons';
 import { InspirationCard } from '../components/InspirationCard';
 import type { UseCardsResult } from '../hooks/useCards';
 import type { UseNotifSchedulesResult } from '../hooks/useNotifSchedules';
@@ -144,10 +144,8 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL, notif
 
         <InspirationCard />
 
-        {/* Today's reminders stats */}
-        {notifStore.todaySchedules.length > 0 && (
-          <TodayStats schedules={notifStore.todaySchedules} done={notifStore.todayDone} onNavigate={navigate} />
-        )}
+        {/* Dua tracker cards */}
+        <DuaTrackerCards onNavigate={navigate} />
 
         {/* Dua Library entry point */}
         <button
@@ -232,65 +230,92 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL, notif
   );
 }
 
-// ── Today's Reminders Stats ──────────────────────────────────────────────────
-import type { NotifSchedule } from '../types';
+// ── Dua Tracker Cards ────────────────────────────────────────────────────────
 import type { NavigateFunction } from 'react-router-dom';
 
-function TodayStats({
-  schedules,
-  done,
-  onNavigate,
-}: {
-  schedules:  NotifSchedule[];
-  done:       Record<string, boolean>;
-  onNavigate: NavigateFunction;
-}) {
-  const doneCount  = schedules.filter((s) => done[s.id]).length;
-  const totalCount = schedules.length;
-  const allDone    = doneCount === totalCount;
+function RingProgress({ pct, size = 72 }: { pct: number; size?: number }) {
+  const r    = (size - 8) / 2;
+  const circ = 2 * Math.PI * r;
+  const off  = circ * (1 - Math.min(pct, 100) / 100);
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} stroke="#dfe7dd" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} stroke="#1d5d44"
+          strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
+          style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-ink">
+        {pct}%
+      </span>
+    </div>
+  );
+}
+
+function DuaTrackerCards({ onNavigate: _onNavigate }: { onNavigate: NavigateFunction }) {
+  const [detail, setDetail] = useState<null | 'daily' | 'monthly'>(null);
+  const close = () => setDetail(null);
+
+  const dailyDone = 0, dailyTotal = 0, dailyPct = 0;
+  const monthDone = 0, monthTotal = 0, monthPct = 0;
 
   return (
-    <div className="mx-4 mb-4 rounded-xl border border-line-soft bg-card shadow-soft-sm">
-      {/* Header row */}
-      <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
-        <span className="text-[13px] font-bold text-ink">Today's Reminders</span>
-        <span className={`text-[12px] font-semibold ${allDone ? 'text-primary' : 'text-ink-mute'}`}>
-          {doneCount} / {totalCount} done
-        </span>
+    <>
+      <div className="mx-4 mb-4 grid grid-cols-2 gap-3">
+        {/* Today card */}
+        <button
+          onClick={() => setDetail('daily')}
+          className="cursor-pointer rounded-xl border border-line-soft bg-card px-4 py-4 text-center shadow-soft-sm transition-transform active:scale-[.98]"
+        >
+          <p className="mb-3 text-[9.5px] font-bold uppercase tracking-[1.8px] text-ink-mute">Today</p>
+          <div className="flex justify-center">
+            <RingProgress pct={dailyPct} />
+          </div>
+          <p className="mt-3 text-[11.5px] text-ink-mute">
+            {dailyDone} done · {dailyTotal - dailyDone} missed
+          </p>
+        </button>
+
+        {/* Month card */}
+        <button
+          onClick={() => setDetail('monthly')}
+          className="cursor-pointer rounded-xl border border-line-soft bg-card px-4 py-4 text-center shadow-soft-sm transition-transform active:scale-[.98]"
+        >
+          <p className="mb-3 text-[9.5px] font-bold uppercase tracking-[1.8px] text-ink-mute">This Month</p>
+          <div className="flex justify-center">
+            <RingProgress pct={monthPct} />
+          </div>
+          <p className="mt-3 text-[11.5px] text-ink-mute">
+            {monthDone} done · {monthTotal - monthDone} missed
+          </p>
+        </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="mx-4 mt-2.5 h-1.5 overflow-hidden rounded-full bg-line-soft">
+      {/* Detail bottom sheet */}
+      {detail && (
         <div
-          className="h-full rounded-full bg-primary transition-all duration-500"
-          style={{ width: `${totalCount ? (doneCount / totalCount) * 100 : 0}%` }}
-        />
-      </div>
-
-      {/* List */}
-      <div className="divide-y divide-line-soft px-4 py-1">
-        {schedules.map((s) => {
-          const isDone = !!done[s.id];
-          const path   = s.type === 'card' ? `/card/${s.targetId}` : `/card/${s.cardId}/dua/${s.targetId}`;
-          return (
-            <button
-              key={s.id}
-              onClick={() => onNavigate(path)}
-              className="flex w-full cursor-pointer items-center gap-3 py-2.5 text-left"
-            >
-              <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                isDone ? 'bg-primary text-card' : 'border border-line text-ink-mute'
-              }`}>
-                {isDone ? '✓' : ''}
-              </span>
-              <span className={`flex-1 text-[13px] font-medium ${isDone ? 'text-ink-mute line-through' : 'text-ink'}`}>
-                {s.title}
-              </span>
-              <span className="text-[11px] text-ink-mute">{s.time}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+          onClick={close}
+        >
+          <div
+            className="w-full max-w-sm rounded-t-3xl bg-card shadow-soft-lg sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
+              <p className="text-[15px] font-bold text-ink">
+                {detail === 'daily' ? "Today's Duas" : 'This Month'}
+              </p>
+              <button onClick={close} className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-ink-mute hover:bg-line-soft">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-5 py-8 text-center">
+              <p className="text-[13px] text-ink-mute">No data yet.</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

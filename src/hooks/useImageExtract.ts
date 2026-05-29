@@ -24,7 +24,7 @@ Return ONLY a JSON object with these exact fields:
 {
   "title": "<short English name for this dua, max 5 words>",
   "arabic": "<the full Arabic text exactly as shown, with diacritics>",
-  "translation": "<accurate English translation>"
+  "translation": "<accurate Bangla (Bengali) translation>"
 }
 If no Arabic text is found, return { "error": "No Arabic text found" }.
 Do not include any explanation outside the JSON.`;
