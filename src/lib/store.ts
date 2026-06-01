@@ -79,9 +79,14 @@ export function subscribeToCards(
           subcards: Array.isArray(data.subcards) ? data.subcards : [],
           createdAt: data.createdAt || 0,
           updatedAt: data.updatedAt || data.createdAt || 0,
+          sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : undefined,
         });
       });
-      cards.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      cards.sort((a, b) => {
+        const aOrder = a.sortOrder ?? a.createdAt ?? 0;
+        const bOrder = b.sortOrder ?? b.createdAt ?? 0;
+        return aOrder - bOrder;
+      });
       onChange(cards);
     },
     (err) => onError(err as Error),
@@ -97,6 +102,7 @@ export async function persistCardRemote(userId: string, card: Card): Promise<voi
     subcards: card.subcards || [],
     createdAt: card.createdAt || Date.now(),
     updatedAt: Date.now(),
+    ...(typeof card.sortOrder === 'number' ? { sortOrder: card.sortOrder } : {}),
   });
 }
 

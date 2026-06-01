@@ -28,6 +28,7 @@ export interface UseCardsResult {
   updateSubcard:    (cardId: string, subId: string, patch: Partial<Subcard>) => Promise<void>;
   deleteSubcard:    (cardId: string, subId: string) => Promise<void>;
   reorderSubcards:  (cardId: string, newOrder: Subcard[]) => Promise<void>;
+  reorderCards:     (newOrder: Card[]) => Promise<void>;
   clearLocal: () => void;
 }
 
@@ -239,6 +240,15 @@ export function useCards({ userId, enabled }: UseCardsArgs): UseCardsResult {
     [persist],
   );
 
+  const reorderCards = useCallback(
+    async (newOrder: Card[]) => {
+      const stamped = newOrder.map((card, i) => ({ ...card, sortOrder: i }));
+      setCards(stamped);
+      for (const card of stamped) await persist(card);
+    },
+    [persist],
+  );
+
   const clearLocalData = useCallback(() => {
     if (cloudEnabled) {
       // Only clears local cache; reload to refetch from cloud
@@ -270,6 +280,7 @@ export function useCards({ userId, enabled }: UseCardsArgs): UseCardsResult {
     updateSubcard,
     deleteSubcard,
     reorderSubcards,
+    reorderCards,
     clearLocal: clearLocalData,
   };
 }

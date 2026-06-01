@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { CollectionCard } from '../components/CollectionCard';
 import { CardModal } from '../components/CardModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { Plus, Logo, X } from '../components/Icons';
+import { Plus, Logo, X, Book, ChevronRight } from '../components/Icons';
 import { InspirationCard } from '../components/InspirationCard';
 import type { UseCardsResult } from '../hooks/useCards';
 import type { UseNotifSchedulesResult } from '../hooks/useNotifSchedules';
@@ -174,14 +183,10 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL, notif
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 pt-1">
-              {cards.map((c) => (
-                <CollectionCard
-                  key={c.id}
-                  card={c}
-                />
-              ))}
-            </div>
+            <SortableCollectionList
+              cards={cards}
+              onReorder={(newOrder) => store.reorderCards(newOrder)}
+            />
           )}
 
           {/* Footer */}
@@ -229,6 +234,74 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL, notif
         onCancel={() => setConfirmClear(false)}
       />
     </>
+  );
+}
+
+// ── Sortable collection list ──────────────────────────────────────────────────
+import type { Card } from '../types';
+
+function SortableCollectionList({ cards, onReorder }: {
+  cards:     Card[];
+  onReorder: (newOrder: Card[]) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 8 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 400, tolerance: 8 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = cards.findIndex((c) => c.id === active.id);
+    const newIdx = cards.findIndex((c) => c.id === over.id);
+    onReorder(arrayMove(cards, oldIdx, newIdx));
+  };
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-2 pt-1">
+          {cards.map((c) => (
+            <SortableCollectionCard key={c.id} card={c} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableCollectionCard({ card }: { card: Card }) {
+  const navigate = useNavigate();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
+  const style   = { transform: CSS.Transform.toString(transform), transition };
+  const count   = card.subcards?.length || 0;
+  const preview = card.desc ? card.desc.slice(0, 40) + (card.desc.length > 40 ? '…' : '') : '';
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`flex animate-card-in cursor-pointer items-start gap-3 rounded-lg border border-line-soft bg-card p-4 shadow-soft-sm transition-all select-none
+        ${isDragging ? 'shadow-soft-lg scale-[1.02] opacity-90' : 'active:scale-[.99]'}
+      `}
+      onClick={() => !isDragging && navigate(`/card/${card.id}`)}
+    >
+      <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[10px] bg-primary-soft text-primary">
+        <Book className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="m-0 mb-0.5 text-[15px] font-bold leading-snug text-ink">{card.title}</h3>
+        <div className="text-xs font-medium text-ink-mute">
+          {count} {count === 1 ? 'entry' : 'entries'}
+          {preview && ` · ${preview}`}
+        </div>
+      </div>
+      <span className="self-center text-ink-mute">
+        <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+      </span>
+    </div>
   );
 }
 

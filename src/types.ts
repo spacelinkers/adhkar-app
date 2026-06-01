@@ -8,6 +8,7 @@ export interface Subcard {
 }
 
 export interface Card {
+  sortOrder?: number;
   id: string;
   title: string;
   desc: string;
