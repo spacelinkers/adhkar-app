@@ -7,6 +7,7 @@ import { Plus, Logo, X } from '../components/Icons';
 import { InspirationCard } from '../components/InspirationCard';
 import type { UseCardsResult } from '../hooks/useCards';
 import type { UseNotifSchedulesResult } from '../hooks/useNotifSchedules';
+import type { UseAmalCardsResult } from '../hooks/useAmalCards';
 
 interface Props {
   store:       UseCardsResult;
@@ -16,9 +17,10 @@ interface Props {
   photoURL:    string | null;
   userId:      string | null;
   notifStore:  UseNotifSchedulesResult;
+  amalStore:   UseAmalCardsResult;
 }
 
-export function HomePage({ store, onSignOut, displayName, email, photoURL, notifStore }: Props) {
+export function HomePage({ store, onSignOut, displayName, email, photoURL, notifStore, amalStore }: Props) {
   const navigate = useNavigate();
   const { cards, cloudEnabled, createCard, clearLocal } = store;
   const [modalOpen,    setModalOpen]    = useState(false);
@@ -145,7 +147,7 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL, notif
         <InspirationCard />
 
         {/* Dua tracker cards */}
-        <DuaTrackerCards onNavigate={navigate} />
+        <DuaTrackerCards onNavigate={navigate} amalStore={amalStore} />
 
         {/* Dua Library entry point */}
         <button
@@ -233,62 +235,134 @@ export function HomePage({ store, onSignOut, displayName, email, photoURL, notif
 // ── Dua Tracker Cards ────────────────────────────────────────────────────────
 import type { NavigateFunction } from 'react-router-dom';
 
-function RingProgress({ pct, size = 72 }: { pct: number; size?: number }) {
+function RingProgress({ pct, size = 72, trackColor = '#dfe7dd', fillColor = '#1d5d44', textColor = '#0f1f1a' }: {
+  pct: number; size?: number; trackColor?: string; fillColor?: string; textColor?: string;
+}) {
   const r    = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const off  = circ * (1 - Math.min(pct, 100) / 100);
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} stroke="#dfe7dd" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} stroke="#1d5d44"
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} stroke={trackColor} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={5} stroke={fillColor}
           strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
           style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-ink">
+      <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold" style={{ color: textColor }}>
         {pct}%
       </span>
     </div>
   );
 }
 
-function DuaTrackerCards({ onNavigate: _onNavigate }: { onNavigate: NavigateFunction }) {
-  const [detail, setDetail] = useState<null | 'daily' | 'monthly'>(null);
+function DuaTrackerCards({ onNavigate, amalStore }: { onNavigate: NavigateFunction; amalStore: UseAmalCardsResult }) {
+  const [detail, setDetail] = useState<null | 'monthly'>(null);
   const close = () => setDetail(null);
 
-  const dailyDone = 0, dailyTotal = 0, dailyPct = 0;
-  const monthDone = 0, monthTotal = 0, monthPct = 0;
+  const today     = new Date().toISOString().slice(0, 10);
+  const monthPfx  = today.slice(0, 7); // "YYYY-MM"
+  const dow       = new Date().getDay();
+
+  // Today
+  const amalsToday  = amalStore.cards.filter((c) => {
+    const days = Array.isArray(c.days) ? c.days : [];
+    return days.length === 0 || days.includes(dow);
+  });
+  const todayDone   = amalsToday.filter((c) => amalStore.getLog(c.id, today)?.status === 'done').length;
+  const todayMissed = amalsToday.filter((c) => amalStore.getLog(c.id, today)?.status === 'undone').length;
+
+  // This month
+  const monthLog    = amalStore.log.filter((l) => l.date.startsWith(monthPfx));
+  const monthDone   = monthLog.filter((l) => l.status === 'done').length;
+  const monthMissed = monthLog.filter((l) => l.status === 'undone').length;
+  const monthTotal  = monthDone + monthMissed;
+  const monthPct    = monthTotal ? Math.round((monthDone / monthTotal) * 100) : 0;
 
   return (
     <>
       <div className="mx-4 mb-4 grid grid-cols-2 gap-3">
-        {/* Today card */}
+        {/* Amal Tracker card → navigates to /amal */}
         <button
-          onClick={() => setDetail('daily')}
-          className="cursor-pointer rounded-xl border border-line-soft bg-card px-4 py-4 text-center shadow-soft-sm transition-transform active:scale-[.98]"
+          onClick={() => onNavigate('/amal')}
+          className="relative cursor-pointer overflow-hidden rounded-xl shadow-soft-md transition-transform active:scale-[.98]"
+          style={{ background: 'linear-gradient(145deg, #1d5d44 0%, #0d3326 100%)' }}
         >
-          <p className="mb-3 text-[9.5px] font-bold uppercase tracking-[1.8px] text-ink-mute">Today</p>
-          <div className="flex justify-center">
-            <RingProgress pct={dailyPct} />
+          {/* Decorative circles */}
+          <div className="absolute -right-5 -top-5 h-24 w-24 rounded-full bg-white/[0.06]" />
+          <div className="absolute -bottom-6 -left-3 h-16 w-16 rounded-full bg-white/[0.05]" />
+          <div className="absolute right-4 bottom-3 h-8 w-8 rounded-full bg-white/[0.07]" />
+
+          <div className="relative px-4 pb-4 pt-4 text-center">
+            {/* Badge */}
+            <span className="inline-block rounded-full bg-white/[0.15] px-2.5 py-[3px] text-[8.5px] font-bold uppercase tracking-[1.8px] text-white/80">
+              Amal Tracker
+            </span>
+
+            {/* Ring — today's completion */}
+            <div className="mt-2 flex justify-center">
+              <RingProgress
+                pct={amalsToday.length ? Math.round((todayDone / amalsToday.length) * 100) : 0}
+                size={68}
+                trackColor="rgba(255,255,255,0.15)"
+                fillColor="rgba(255,255,255,0.9)"
+                textColor="rgba(255,255,255,0.95)"
+              />
+            </div>
+
+            {/* Done / missed sub-card */}
+            <div className="mt-2.5 rounded-xl bg-white/[0.1] px-2.5 py-1.5">
+              <p className="text-[8.5px] font-bold uppercase tracking-wider text-white/50">Today</p>
+              <p className="mt-0.5 text-[10.5px] font-medium text-white">
+                <span className="text-emerald-300">{todayDone} done</span>
+                <span className="mx-1 text-white/30">·</span>
+                <span className="text-rose-300">{todayMissed} missed</span>
+              </p>
+            </div>
           </div>
-          <p className="mt-3 text-[11.5px] text-ink-mute">
-            {dailyDone} done · {dailyTotal - dailyDone} missed
-          </p>
         </button>
 
-        {/* Month card */}
+        {/* This Month card */}
         <button
           onClick={() => setDetail('monthly')}
-          className="cursor-pointer rounded-xl border border-line-soft bg-card px-4 py-4 text-center shadow-soft-sm transition-transform active:scale-[.98]"
+          className="relative cursor-pointer overflow-hidden rounded-xl shadow-soft-md transition-transform active:scale-[.98]"
+          style={{ background: 'linear-gradient(145deg, #4f46e5 0%, #1e1b4b 100%)' }}
         >
-          <p className="mb-3 text-[9.5px] font-bold uppercase tracking-[1.8px] text-ink-mute">This Month</p>
-          <div className="flex justify-center">
-            <RingProgress pct={monthPct} />
+          {/* Decorative circles */}
+          <div className="absolute -left-4 -top-4 h-20 w-20 rounded-full bg-white/[0.06]" />
+          <div className="absolute -bottom-5 -right-3 h-16 w-16 rounded-full bg-white/[0.05]" />
+
+          <div className="relative px-4 pb-4 pt-4 text-center">
+            {/* Badge */}
+            <span className="inline-block rounded-full bg-white/[0.15] px-2.5 py-[3px] text-[8.5px] font-bold uppercase tracking-[1.8px] text-white/80">
+              This Month
+            </span>
+
+            {/* Ring */}
+            <div className="my-2.5 flex justify-center">
+              <RingProgress
+                pct={monthPct}
+                size={68}
+                trackColor="rgba(255,255,255,0.15)"
+                fillColor="rgba(255,255,255,0.9)"
+                textColor="rgba(255,255,255,0.95)"
+              />
+            </div>
+
+            {/* Monthly done / missed */}
+            <div className="flex justify-center gap-4">
+              <div className="text-center">
+                <p className="text-[17px] font-bold leading-none text-white">{monthDone}</p>
+                <p className="mt-0.5 text-[9px] text-white/55">done</p>
+              </div>
+              <div className="w-px bg-white/20" />
+              <div className="text-center">
+                <p className="text-[17px] font-bold leading-none text-white/70">{monthMissed}</p>
+                <p className="mt-0.5 text-[9px] text-white/55">missed</p>
+              </div>
+            </div>
           </div>
-          <p className="mt-3 text-[11.5px] text-ink-mute">
-            {monthDone} done · {monthTotal - monthDone} missed
-          </p>
         </button>
       </div>
 
@@ -304,7 +378,7 @@ function DuaTrackerCards({ onNavigate: _onNavigate }: { onNavigate: NavigateFunc
           >
             <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
               <p className="text-[15px] font-bold text-ink">
-                {detail === 'daily' ? "Today's Duas" : 'This Month'}
+                This Month
               </p>
               <button onClick={close} className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-ink-mute hover:bg-line-soft">
                 <X className="h-4 w-4" />

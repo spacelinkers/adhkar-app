@@ -24,9 +24,10 @@ export interface UseCardsResult {
   createCard: (title: string, desc: string) => Promise<Card>;
   updateCard: (id: string, patch: Partial<Card>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
-  addSubcard: (cardId: string, sub: Omit<Subcard, 'id'>) => Promise<void>;
-  updateSubcard: (cardId: string, subId: string, patch: Partial<Subcard>) => Promise<void>;
-  deleteSubcard: (cardId: string, subId: string) => Promise<void>;
+  addSubcard:       (cardId: string, sub: Omit<Subcard, 'id'>) => Promise<void>;
+  updateSubcard:    (cardId: string, subId: string, patch: Partial<Subcard>) => Promise<void>;
+  deleteSubcard:    (cardId: string, subId: string) => Promise<void>;
+  reorderSubcards:  (cardId: string, newOrder: Subcard[]) => Promise<void>;
   clearLocal: () => void;
 }
 
@@ -223,6 +224,21 @@ export function useCards({ userId, enabled }: UseCardsArgs): UseCardsResult {
     [persist],
   );
 
+  const reorderSubcards = useCallback(
+    async (cardId: string, newOrder: Subcard[]) => {
+      let updated: Card | undefined;
+      setCards((prev) =>
+        prev.map((c) => {
+          if (c.id !== cardId) return c;
+          updated = { ...c, subcards: newOrder, updatedAt: Date.now() };
+          return updated;
+        }),
+      );
+      if (updated) await persist(updated);
+    },
+    [persist],
+  );
+
   const clearLocalData = useCallback(() => {
     if (cloudEnabled) {
       // Only clears local cache; reload to refetch from cloud
@@ -253,6 +269,7 @@ export function useCards({ userId, enabled }: UseCardsArgs): UseCardsResult {
     addSubcard,
     updateSubcard,
     deleteSubcard,
+    reorderSubcards,
     clearLocal: clearLocalData,
   };
 }

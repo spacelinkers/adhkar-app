@@ -1,5 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor,
+  useSensor, useSensors, DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { BrandBar } from '../components/BrandBar';
 import { SubcardModal } from '../components/SubcardModal';
 import { CardModal } from '../components/CardModal';
@@ -118,11 +127,11 @@ export function DetailPage({ store, userId, notifStore }: Props) {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 pt-1">
-            {subs.map((sub, i) => (
-              <DuaRow key={sub.id} sub={sub} num={i + 1} cardId={cardId!} />
-            ))}
-          </div>
+          <SortableList
+            subs={subs}
+            cardId={cardId!}
+            onReorder={(newOrder) => store.reorderSubcards(card.id, newOrder)}
+          />
         )}
 
         <button
@@ -168,38 +177,85 @@ export function DetailPage({ store, userId, notifStore }: Props) {
   );
 }
 
-function DuaRow({ sub, num, cardId }: { sub: Subcard; num: number; cardId: string }) {
+// ── Sortable list ─────────────────────────────────────────────────────────────
+function SortableList({ subs, cardId, onReorder }: {
+  subs: Subcard[];
+  cardId: string;
+  onReorder: (newOrder: Subcard[]) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = subs.findIndex((s) => s.id === active.id);
+    const newIdx = subs.findIndex((s) => s.id === over.id);
+    onReorder(arrayMove(subs, oldIdx, newIdx));
+  };
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={subs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-col gap-2 pt-1">
+          {subs.map((sub, i) => (
+            <SortableDuaRow key={sub.id} sub={sub} num={i + 1} cardId={cardId} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableDuaRow({ sub, num, cardId }: { sub: Subcard; num: number; cardId: string }) {
   const navigate = useNavigate();
-  const hasTitle = !!sub.title?.trim();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  const hasTitle  = !!sub.title?.trim();
   const hasArabic = !!sub.arabic?.trim();
 
   return (
-    <button
-      onClick={() => navigate(`/card/${cardId}/dua/${sub.id}`)}
-      className="group w-full cursor-pointer rounded-xl border border-line-soft bg-card px-4 py-4 text-left shadow-soft-sm transition-all active:scale-[.99] active:shadow-none"
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 rounded-xl border border-line-soft bg-card shadow-soft-sm transition-shadow ${
+        isDragging ? 'shadow-soft-lg opacity-80' : ''
+      }`}
     >
-      <div className="flex items-start gap-3.5">
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex h-full cursor-grab items-center px-2 py-4 text-ink-mute/40 active:cursor-grabbing"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <circle cx="7" cy="6"  r="1.5" /><circle cx="13" cy="6"  r="1.5" />
+          <circle cx="7" cy="10" r="1.5" /><circle cx="13" cy="10" r="1.5" />
+          <circle cx="7" cy="14" r="1.5" /><circle cx="13" cy="14" r="1.5" />
+        </svg>
+      </div>
+
+      {/* Row content — tappable */}
+      <button
+        onClick={() => navigate(`/card/${cardId}/dua/${sub.id}`)}
+        className="flex min-w-0 flex-1 items-start gap-3 py-4 pr-4 text-left"
+      >
         <div className="mt-0.5 grid h-7 w-7 flex-shrink-0 place-items-center rounded-lg bg-primary-soft text-[11px] font-bold tabular-nums text-primary">
           {String(num).padStart(2, '0')}
         </div>
         <div className="min-w-0 flex-1">
-          <div
-            className={`text-[14.5px] font-semibold leading-snug ${
-              hasTitle ? 'text-ink' : 'italic text-ink-mute'
-            }`}
-          >
+          <div className={`text-[14.5px] font-semibold leading-snug ${hasTitle ? 'text-ink' : 'italic text-ink-mute'}`}>
             {hasTitle ? sub.title : 'Untitled'}
           </div>
           {hasArabic && (
-            <div
-              className="mt-1.5 truncate text-right font-arabic text-[17px] text-ink-mute"
-              dir="rtl"
-            >
+            <div className="mt-1.5 truncate text-right font-arabic text-[17px] text-ink-mute" dir="rtl">
               {sub.arabic.slice(0, 60)}{sub.arabic.length > 60 ? '…' : ''}
             </div>
           )}
         </div>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }

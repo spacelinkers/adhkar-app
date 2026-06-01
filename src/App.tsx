@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useCards } from './hooks/useCards';
 import { useNotifSchedules } from './hooks/useNotifSchedules';
+import { useAmalCards } from './hooks/useAmalCards';
 import { BootScreen } from './components/BootScreen';
 import { SyncStatus } from './components/SyncStatus';
 import { LoginPage } from './pages/LoginPage';
@@ -10,11 +11,13 @@ import { DetailPage } from './pages/DetailPage';
 import { SubDetailPage } from './pages/SubDetailPage';
 import { DuaLibraryPage } from './pages/DuaLibraryPage';
 import { DuaDetailPage }  from './pages/DuaDetailPage';
+import { AmalTrackerPage } from './pages/AmalTrackerPage';
 
 export default function App() {
   const auth       = useAuth();
   const store      = useCards({ userId: auth.userId, enabled: auth.status === 'authed' });
   const notifStore = useNotifSchedules(auth.userId);
+  const amalStore  = useAmalCards();
 
   if (auth.status === 'unauthenticated' || auth.status === 'denied' || auth.status === 'error') {
     return (
@@ -39,7 +42,7 @@ export default function App() {
 
       <Routes>
         <Route path="/"
-          element={<HomePage store={store} onSignOut={auth.signOut} displayName={auth.displayName} email={auth.email} photoURL={auth.photoURL} userId={auth.userId} notifStore={notifStore} />} />
+          element={<HomePage store={store} onSignOut={auth.signOut} displayName={auth.displayName} email={auth.email} photoURL={auth.photoURL} userId={auth.userId} notifStore={notifStore} amalStore={amalStore} />} />
         <Route path="/library"
           element={<DuaLibraryPage store={store} isAdmin={auth.isAdmin} email={auth.email} />} />
         <Route path="/library/:duaId"
@@ -48,6 +51,8 @@ export default function App() {
           element={<DetailPage store={store} userId={auth.userId} notifStore={notifStore} />} />
         <Route path="/card/:cardId/dua/:subId"
           element={<SubDetailPage store={store} userId={auth.userId} notifStore={notifStore} />} />
+        <Route path="/amal"
+          element={<AmalTrackerPage store={store} amalStore={amalStore} />} />
       </Routes>
     </BrowserRouter>
   );

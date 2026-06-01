@@ -39,6 +39,23 @@ export interface NotifSchedule {
   lastSentDate: string | null;
 }
 
+export interface AmalCard {
+  id:          string;
+  title:       string;
+  amal:        string;
+  description: string;
+  time:        string;    // "HH:MM" — when to perform
+  days:        number[];  // 0=Sun..6=Sat; empty = every day
+  duaRefs:     Array<{ cardId: string; subId: string; title: string; arabic?: string; translation?: string }>;
+  createdAt:   number;
+}
+
+export interface AmalLog {
+  amalId: string;
+  date:   string;   // "YYYY-MM-DD"
+  status: 'done' | 'undone';
+}
+
 export type SyncKind = 'idle' | 'syncing' | 'ok' | 'error' | 'offline';
 
 export interface SyncState {
