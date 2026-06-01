@@ -368,28 +368,236 @@ function DuaTrackerCards({ onNavigate, amalStore }: { onNavigate: NavigateFuncti
 
       {/* Detail bottom sheet */}
       {detail && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-          onClick={close}
-        >
-          <div
-            className="w-full max-w-sm rounded-t-3xl bg-card shadow-soft-lg sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
-              <p className="text-[15px] font-bold text-ink">
-                This Month
-              </p>
-              <button onClick={close} className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-ink-mute hover:bg-line-soft">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="px-5 py-8 text-center">
-              <p className="text-[13px] text-ink-mute">No data yet.</p>
-            </div>
-          </div>
-        </div>
+        <MonthCalendarSheet
+          cards={amalStore.cards}
+          log={amalStore.log}
+          onClose={close}
+        />
       )}
     </>
+  );
+}
+
+// ── Month Calendar Sheet ──────────────────────────────────────────────────────
+import type { AmalCard, AmalLog } from '../types';
+
+const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function isoDate(y: number, m: number, d: number) {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+type DayStatus = 'done' | 'partial' | 'missed' | 'none' | 'future';
+
+function getDayStatus(dateStr: string, cards: AmalCard[], log: AmalLog[], today: string): DayStatus {
+  if (dateStr > today) return 'future';
+  const dow = new Date(dateStr + 'T12:00:00').getDay();
+  const scheduled = cards.filter((c) => {
+    const days = Array.isArray(c.days) ? c.days : [];
+    return days.length === 0 || days.includes(dow);
+  });
+  if (scheduled.length === 0) return 'none';
+  const dayLog = log.filter((l) => l.date === dateStr);
+  const done   = scheduled.filter((c) => dayLog.find((l) => l.amalId === c.id)?.status === 'done').length;
+  const missed = scheduled.filter((c) => dayLog.find((l) => l.amalId === c.id)?.status === 'undone').length;
+  if (done === scheduled.length) return 'done';
+  if (done > 0)   return 'partial';
+  if (missed > 0) return 'missed';
+  return 'none';
+}
+
+function getDayItems(dateStr: string, cards: AmalCard[], log: AmalLog[]) {
+  const dow = new Date(dateStr + 'T12:00:00').getDay();
+  const scheduled = cards.filter((c) => {
+    const days = Array.isArray(c.days) ? c.days : [];
+    return days.length === 0 || days.includes(dow);
+  });
+  return scheduled.map((c) => {
+    const entry = log.find((l) => l.amalId === c.id && l.date === dateStr);
+    return { card: c, status: entry?.status ?? 'pending' };
+  });
+}
+
+function MonthCalendarSheet({ cards, log, onClose }: {
+  cards:   AmalCard[];
+  log:     AmalLog[];
+  onClose: () => void;
+}) {
+  const now   = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  const [viewYear,  setViewYear]  = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [selected,  setSelected]  = useState<string | null>(null);
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
+    else setViewMonth((m) => m - 1);
+    setSelected(null);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
+    else setViewMonth((m) => m + 1);
+    setSelected(null);
+  };
+
+  const firstDow   = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const cells: Array<number | null> = [
+    ...Array(firstDow).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  // Pad to complete last row
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const dayItems = selected ? getDayItems(selected, cards, log) : [];
+
+  // Per-amal stats for the viewed month
+  const monthPfx = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+  const amalMonthStats = cards.map((card) => {
+    const monthLog = log.filter((l) => l.amalId === card.id && l.date.startsWith(monthPfx));
+    const done   = monthLog.filter((l) => l.status === 'done').length;
+    const missed = monthLog.filter((l) => l.status === 'undone').length;
+    return { card, done, missed };
+  }).filter((s) => s.done + s.missed > 0);
+
+  const statusColor: Record<DayStatus, string> = {
+    done:    'bg-primary text-card',
+    partial: 'bg-amber-400 text-white',
+    missed:  'bg-rose text-card',
+    none:    '',
+    future:  '',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-t-3xl bg-card shadow-soft-lg sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
+          <div className="flex items-center gap-2">
+            <button onClick={prevMonth} className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg text-ink-mute hover:bg-line-soft text-[14px]">‹</button>
+            <p className="text-[15px] font-bold text-ink">{MONTH_NAMES[viewMonth]} {viewYear}</p>
+            <button onClick={nextMonth} className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg text-ink-mute hover:bg-line-soft text-[14px]">›</button>
+          </div>
+          <button onClick={onClose} className="grid h-8 w-8 cursor-pointer place-items-center rounded-xl text-ink-mute hover:bg-line-soft">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="max-h-[78vh] overflow-y-auto px-4 pb-6 pt-3">
+          {/* Weekday headers */}
+          <div className="mb-1 grid grid-cols-7 text-center">
+            {WEEK_DAYS.map((d) => (
+              <span key={d} className="text-[10.5px] font-bold text-ink-mute">{d}</span>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-y-1">
+            {cells.map((day, idx) => {
+              if (!day) return <div key={idx} />;
+              const dateStr  = isoDate(viewYear, viewMonth, day);
+              const status   = getDayStatus(dateStr, cards, log, today);
+              const isToday  = dateStr === today;
+              const isSel    = dateStr === selected;
+              const isFuture = status === 'future';
+              return (
+                <button
+                  key={idx}
+                  onClick={() => !isFuture && setSelected(isSel ? null : dateStr)}
+                  disabled={isFuture}
+                  className={`mx-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[12.5px] font-semibold transition-transform active:scale-90 disabled:cursor-default
+                    ${statusColor[status] || (isFuture ? 'text-ink-mute/30' : 'text-ink')}
+                    ${isToday && !statusColor[status] ? 'ring-2 ring-primary' : ''}
+                    ${isSel ? 'ring-2 ring-offset-1 ring-primary/60' : ''}
+                  `}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="mt-3 flex items-center justify-center gap-3">
+            {(['done', 'partial', 'missed'] as DayStatus[]).map((s) => (
+              <div key={s} className="flex items-center gap-1">
+                <span className={`h-2.5 w-2.5 rounded-full ${s === 'done' ? 'bg-primary' : s === 'partial' ? 'bg-amber-400' : 'bg-rose'}`} />
+                <span className="text-[10px] capitalize text-ink-mute">{s}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Day detail */}
+          {selected && (
+            <div className="mt-4 rounded-xl border border-line-soft bg-bg px-4 py-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-ink-mute">
+                {new Date(selected + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </p>
+              {dayItems.length === 0 ? (
+                <p className="text-[12.5px] text-ink-mute">No amals scheduled.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {dayItems.map(({ card, status: s }) => (
+                    <div key={card.id} className="flex items-center gap-2.5">
+                      <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                        s === 'done'    ? 'bg-primary text-card' :
+                        s === 'undone'  ? 'bg-rose/10 text-rose border border-rose/30' :
+                                          'border border-line text-transparent'
+                      }`}>
+                        {s === 'done' ? '✓' : s === 'undone' ? '✕' : ''}
+                      </span>
+                      <span className={`text-[12.5px] font-medium ${s === 'done' ? 'text-ink-mute line-through' : 'text-ink'}`}>
+                        {card.title}
+                      </span>
+                      {card.time && (
+                        <span className="ml-auto text-[10.5px] text-ink-mute">{card.time}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Per-amal monthly summary */}
+          <div className="mt-4 border-t border-line-soft pt-4">
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-ink-mute">
+              {MONTH_NAMES[viewMonth]} Summary
+            </p>
+            {amalMonthStats.length === 0 ? (
+              <p className="text-[12.5px] text-ink-mute">No data for this month.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {amalMonthStats.map(({ card, done, missed }) => {
+                  const total = done + missed;
+                  const pct   = total ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <div key={card.id} className="rounded-xl border border-line-soft bg-bg px-3.5 py-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="truncate text-[13px] font-medium text-ink">{card.title}</span>
+                        <span className="ml-2 flex-shrink-0 text-[11px] font-semibold text-ink-mute">{pct}%</span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-line-soft">
+                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="mt-1 flex gap-3">
+                        <span className="text-[10.5px] font-medium text-primary">{done} done</span>
+                        <span className="text-[10.5px] font-medium text-rose">{missed} missed</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
