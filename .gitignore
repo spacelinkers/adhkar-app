@@ -6,3 +6,5 @@ dist
 *.log
 .vite
 generate-icons.mjs
+scripts/serviceaccount.json
+**/serviceaccount.json
