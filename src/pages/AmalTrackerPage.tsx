@@ -209,6 +209,7 @@ function AmalCardRow({ card, logEntry, menuOpen, onToggleDone, onDetail, onMenuT
       <div
         {...attributes}
         {...listeners}
+        style={{ touchAction: 'none' }}
         className="flex h-full cursor-grab items-center px-2 py-4 text-ink-mute/40 active:cursor-grabbing"
       >
         <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
